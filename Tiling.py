@@ -153,6 +153,34 @@ class SelectionObject:
         return cropped
 
 
+#TODO dataclass ?
+class Box:
+    def __init__(self, img: Image.Image, left, top, right, bottom):
+        self.og = img
+        self.start = (left, top) #TODO mettere x e y classe 2D coord?
+        self.end = (right, bottom)
+        self.img = img.crop((left, top, right, bottom))
+        self.mat = np.array(self.img.convert('RGB'))
+
+    def update(self, left, top, right, end):
+        self.start = (left, top)
+        self.end = (right, end)
+        self.img = self.og.crop((left, top, right, end))
+        self.mat = np.array(self.img.convert('RGB'))
+
+    def set_end(self, right, bottom):
+        self.end = (right, bottom)
+        self._reload()
+
+    def set_start(self, left, top):
+        self.start = (left, top)
+        self._reload()
+
+    def _reload(self):
+        self.img = self.og.crop((self.start[0], self.start[1], self.end[0], self.end[1]))
+        self.mat = np.array(self.img.convert('RGB'))
+
+
 class Tiling:
     def __init__(self, image: Image.Image, selection: SelectionObject):
         # tollerance for minimum distance
@@ -180,18 +208,18 @@ class Tiling:
         if self.bo < 1:
             self.bo = 1
 
-        # self.left_border = [(self.selection.start[0], self.selection.start[1] - self.bv),
-        #                     (self.selection.start[0] + self.border, self.selection.end[1] + self.bv)]
-        # self.right_border = [(self.selection.end[0] - self.bo, self.selection.start[1] - self.bv),
-        #                      (self.selection.end[0] - self.bo + self.border, self.selection.end[1] + self.bv)]
+        self.module = Box(image, self.selection.start[0], self.selection.start[1],
+                          self.selection.end[0], self.selection.end[1])
+        self.left_border = Box(image, self.selection.start[0] - self.bo, self.selection.start[1] - self.bv,
+                               self.selection.start[0] - self.bo + self.border, self.selection.end[1] + self.bv)
+        self.right_border = Box(image, self.selection.end[0] - self.bo, self.selection.start[1] - self.bv,
+                                self.selection.end[0] - self.bo + self.border, self.selection.end[1] + self.bv)
 
         crop_img = selection.crop(self.bo, self.bv)
         # user-selected image (with border) to matrix
         matrix = crop_img.convert('RGB')
         self.crop = np.array(matrix)
 
-        # extracted module (coordinates) init
-        self.module = self.selection
         # start module search
         self.start_search()
 
@@ -203,34 +231,25 @@ class Tiling:
 
         # ricerca orizzontale
 
-        #h_border_size = int(self.width * self.border_ratio) #horizontal border size
         print("h border search area (size) " + str(self.bo))
         print("width " + str(self.width) + " border search area ratio " + str(self.search_ratio))
         step = 0
-        min_diff_h = (1, 0)  # tuple containing (min difference, step)
-        min_border = None
+        min_diff_right = (1, 0)  # tuple containing (min difference, step)
 
         # bordo sinistro partendo dalla coordinata 0 della selezione dell'utenete
-        left_border = self.crop[:, self.bo: self.border + self.bo, :]
-        print("coordinata inizio bordo sx: " + str(self.bo) + " - " + str(self.bo + self.border))
-        print("left border estratto size: " + str(left_border.shape))
-        # while width > int(self.width * self.ratio): # stops when minimum module size is reached
+        # left_border = self.crop[:, self.bo: self.border + self.bo, :]
+        left_border = self.left_border.mat
+
 
         #+++++++++++ fissato a sx, sposto il bordo di dx
         while step <= 2 * self.bo:  # ricerca  nell'area tra -bo e +bo
             print("############### STEP " + str(step))
-            # print("crop shape: " + str(self.crop.shape))
-            # r_start = ((self.selection.end[0] - step) % self.image.width, self.selection.start[1])
-            # r_end = ((self.selection.end[0] + self.bo - step) % self.image.width, self.selection.end[1])
 
-            # self.right_border = ((self.selection.end[0] - self.bo, self.selection.end[1] - self.bv),
-            #                      (self.selection.end[0] - self.bo + self.border, self.selection.end[1] + self.bv))
             # coordinata sx del bordo dx, partendo da -bo rispetto alla selezione dell'utente
-            # r_start = (self.right_border[0][0] + step, self.right_border[0][1])  #TODO classe per estremi rettangoli?
-            # r_end = ((self.right_border[1][0] + step), self.right_border[1][1])
-            r_start = (self.selection.end[0] - self.bo + step, self.selection.start[1] - self.bv )
-            r_end = (self.selection.end[0]-self.bo+step+self.border, self.selection.end[1] + self.bv )
-            print("start, end (border right) = " + str(r_start), str(r_end))
+            # r_start = (self.selection.end[0] - self.bo + step, self.selection.start[1] - self.bv)
+            # r_end = (self.selection.end[0] - self.bo + step + self.border, self.selection.end[1] + self.bv)
+            r_start = (self.right_border.start[0] + step, self.right_border.start[1])
+            r_end = (self.right_border.end[0] + step, self.right_border.end[1])
 
             right_border = og_img[r_start[1]: r_end[1], r_start[0]: r_end[0], :]
 
@@ -248,40 +267,37 @@ class Tiling:
 
             diff = self.normalize(right_border) - self.normalize(left_border)
             m_norm = sum(sum(sum(abs(diff)))) / right_border.size  # Manhattan norm
-            if m_norm < min_diff_h[0]:
-                min_diff_h = (m_norm, step)
+            if m_norm < min_diff_right[0]:
+                min_diff_right = (m_norm, step)
             print("diff (M norm): " + str(m_norm))
             step += 1
 
-        print("Minimun (h) distanze between borders find at step " + str(min_diff_h[1]) + ": " + str(min_diff_h[0]))
+        print("Minimun (h) distanze between borders find at step " + str(min_diff_right[1]) + ": " + str(min_diff_right[0]))
 
         #aggiornamento valori bordo dx
-        # self.right_border[0] = (self.selection.end[0] - self.bo + min_diff_h[1], self.right_border[0][1])
-        # self.right_border[1] = (self.right_border[0][0] + self.border, self.right_border[1][1])
+        self.right_border.update(self.right_border.start[0] + min_diff_right[1], self.right_border.start[1],
+                                 self.right_border.end[0] + min_diff_right[1], self.right_border.end[1])
 
-        #TODO pensa anche a come memorizzare questo
-        module_end = (self.selection.end[0] - self.bo + min_diff_h[1],
+        self.module.set_end(self.selection.end[0] - self.bo + min_diff_right[1],
                       self.selection.end[1])
+        # module_end = (self.selection.end[0] - self.bo + min_diff_r[1],
+        #               self.selection.end[1])
 
         # +++++++++++ fissato a dx, sposto il bordo di sx
         step = 0
         min_diff_left = (1, 0)
-        r_start = (module_end[0], self.selection.start[1] - self.bv)
-        r_end = (module_end[0] + self.border, self.selection.end[1] + self.bv)
-        # right_border = self.crop[:, r_start[0]: r_end[0], :]
-        # right_border = og_img[self.right_border[0][1]: self.right_border[1][1],
-        #                self.right_border[0][0]: self.right_border[1][0], :]
-        right_border = og_img[r_start[1]: r_end[1], r_start[0]: r_end[0], :]
+        # r_start = (module_end[0], self.selection.start[1] - self.bv)
+        # r_end = (module_end[0] + self.border, self.selection.end[1] + self.bv)
+        # right_border = og_img[r_start[1]: r_end[1], r_start[0]: r_end[0], :]
+        right_border = self.right_border.mat
         print("right border shape = " + str(right_border.shape))
 
         while step <= 2 * self.bo:
 
-            # self.left_border[0] = (self.selection.start[0] + step - self.bo, self.left_border[0][1])
-            # self.left_border[1] = (self.selection.start[0] + step - self.bo + self.border, self.left_border[1][1])
-            # left_border = og_img[self.left_border[0][1]: self.left_border[1][1],
-            #               self.left_border[0][0]: self.left_border[1][0], :]
-            l_start = (self.selection.start[0]-self.bo+step , self.selection.start[1]-self.bv)
-            l_end = (self.selection.start[0]-self.bo+step+self.border, self.selection.end[1]+self.bv)
+            # l_start = (self.selection.start[0] - self.bo + step, self.selection.start[1] - self.bv)
+            # l_end = (self.selection.start[0] - self.bo + step + self.border, self.selection.end[1] + self.bv)
+            l_start = (self.left_border.start[0] + step, self.left_border.start[1])
+            l_end = (self.left_border.end[0] + step, self.right_border.end[1])
             left_border = og_img[l_start[1]: l_end[1], l_start[0]: l_end[0], :]
 
             if step == 0:
@@ -293,30 +309,33 @@ class Tiling:
             m_norm = sum(sum(sum(abs(diff)))) / right_border.size  # Manhattan norm
             if m_norm < min_diff_left[0]:
                 min_diff_left = (m_norm, step)
-                # left_min_border = left_border
             print("step #" + str(step) + " - diff (M norm): " + str(m_norm))
             step += 1
         print("min step (h, sx): " + str(min_diff_left[1]))
 
-        module_start = (self.selection.start[0] - self.bo + min_diff_left[1],
-                        self.selection.start[1])
+        self.module.set_start(self.selection.start[0] - self.bo + min_diff_left[1], self.selection.start[1])
+        # module_start = (self.selection.start[0] - self.bo + min_diff_left[1],
+        #                 self.selection.start[1])
+
         # left, top, right, bottom
-        module = self.image.crop((module_start[0], module_start[1], module_end[0], module_end[1]))
+        # module = self.image.crop((module_start[0], module_start[1], module_end[0], module_end[1]))
+        module = self.image.crop(( self.module.start[0],  self.module.start[1], self.module.end[0], self.module.end[1]))
 
         # aggiornamento valori bordo sx
-        # self.left_border[0] = (self.selection.start[0] + min_diff_left[1] - self.bo, self.left_border[0][1])
-        # self.left_border[1] = (self.left_border[0][0] + self.border, self.left_border[1][1])
-        # left_min_border = og_img[self.left_border[0][1]: self.left_border[1][1],
-        #                   self.left_border[0][0]: self.left_border[1][0], :]
-        l_start = (self.selection.start[0] - self.bo + min_diff_left[1], self.selection.start[1] - self.bv)
-        l_end = (self.selection.start[0] - self.bo + min_diff_left[1] + self.border, self.selection.end[1] + self.bv)
-        left_min_border = og_img[l_start[1]: l_end[1], l_start[0]: l_end[0], :]
+        # self.right_border.update(self.right_border.start[0] + min_diff_right[1], self.right_border.start[1],
+        #                          self.right_border.end[1] + min_diff_right[1], self.right_border.end[1])
+        # l_start = (self.selection.start[0] - self.bo + min_diff_left[1], self.selection.start[1] - self.bv)
+        # l_end = (self.selection.start[0] - self.bo + min_diff_left[1] + self.border, self.selection.end[1] + self.bv)
+        # left_min_border = og_img[l_start[1]: l_end[1], l_start[0]: l_end[0], :]
+        self.left_border.update(self.selection.start[0] - self.bo + min_diff_left[1], self.selection.start[1] - self.bv,
+                                self.selection.start[0] - self.bo + min_diff_left[1] + self.border, self.selection.end[1] + self.bv)
 
-        imgl = Image.fromarray(left_min_border, mode='RGB')
-        imgl.save('left_border.png')  # TODO gestisci salvataggio nella cartella giusta
-
-        imgr = Image.fromarray(right_border, mode='RGB')
-        imgr.save('right_border.png')
+        # imgl = Image.fromarray(left_min_border, mode='RGB')
+        # imgl.save('left_border.png')  # TODO gestisci salvataggio nella cartella giusta
+        self.left_border.img.save('left_border.png')
+        # imgr = Image.fromarray(right_border, mode='RGB')
+        # imgr.save('right_border.png')
+        self.right_border.img.save('right_border.png')
 
         imgc = Image.fromarray(np.array(self.selection.crop().convert('RGB')), mode='RGB')
         imgc.save('user_crop.png')
