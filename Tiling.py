@@ -249,6 +249,7 @@ class Tiling:
         og_img = self.image.convert('RGB')
         og_img = np.array(og_img)
         h_diff_values = []
+        v_diff_values = []
 
 
         # ricerca orizzontale
@@ -315,7 +316,7 @@ class Tiling:
             m_norm = sum(sum(sum(abs(diff)))) / bottom_border.size  # Manhattan norm
             if m_norm < min_diff_bottom[0]:
                 min_diff_bottom = (m_norm, step)
-            h_diff_values.append(m_norm)
+            v_diff_values.append(m_norm)
             print("diff (M norm): " + str(m_norm))
             step += 1
 
@@ -333,8 +334,11 @@ class Tiling:
         self.bottom_border.update(self.bottom_border.start[0], self.bottom_border.start[1] + min_diff_bottom[1],
                                   self.bottom_border.end[0], self.bottom_border.end[1] + min_diff_bottom[1])
 
-        self.module.set_end(self.selection.end[0] - self.bo + min_diff_right[1],
-                            self.selection.end[1] - self.bv + min_diff_bottom[1])
+        # self.module.set_end(self.selection.end[0] - self.bo + min_diff_right[1],
+                            # self.selection.end[1] - self.bv + min_diff_bottom[1])
+        self.module.set_end(self.right_border.start[0],
+                            self.bottom_border.start[1])
+        # print("end selection, bo, min_diff_right[1] :"+str( (self.selection.end[0], self.bo, min_diff_right[1])))
         self.module.set_start(self.selection.start[0], self.selection.start[1])
 
         # left, top, right, bottom
@@ -357,7 +361,11 @@ class Tiling:
         imgs = Image.fromarray(search_area, mode='RGB')
         self.save_img(imgs, 'search_area.png')
 
-        self.plot(h_diff_values)
+        print("coords module: "+str((self.module.start[0], self.module.start[1], self.module.end[0], self.module.end[1])))
+        print("orig width and height: "+str(og_img.shape))
+
+        self.plot(h_diff_values, self.bo, file_name="h_plot.png")
+        self.plot(v_diff_values, self.bv, file_name="v_plot.png")
 
     # def _drop_alpha(self, img):
     #     return img if img.shape[-1] == 3 else img[:, :, 1:]
@@ -373,26 +381,33 @@ class Tiling:
             os.mkdir(OUT_DIR)
         img.save(file_path)
 
-    def plot(self, values):
+    def plot(self, values, range_limit, direction=0, file_name="plot.png"):
         fig, ax = plt.subplots()
         # data
-        end_y = len(values) - self.bo
-        y = range(-self.bo, end_y)
+        end_y = len(values) - range_limit
+        points = range(-range_limit, end_y)
         print("x: " + str(len(values)))
-        print("y: " + str(len(y)))
-        print(y)
+        print("y: " + str(len(points)))
+        print(points)
 
-        ax.plot(y, values, linewidth=1.0, color='red')
+        if direction == 0:
+            y = points
+            x = values
+        else:
+            y = values
+            x = points
 
-        min_x = np.argmin(values)
-        min_y = np.min(values)
+        ax.plot(y, x, linewidth=1.0, color='red')
+
+        min_x = np.argmin(x)
+        min_y = np.min(x)
 
         plt.scatter(y[min_x], min_y, c='r', label='min @ iter # ' + str(min_x))
         plt.legend()
         plt.ylabel('Q')
         plt.xlabel('pixel')
-        plt.show()
-        file_path = os.path.join(OUT_DIR, "plot.png")
+        # plt.show()
+        file_path = os.path.join(OUT_DIR, file_name)
         fig.savefig(file_path)
 
 
