@@ -111,11 +111,25 @@ class SelectionObject:
     def update(self, start, end):
         # Current extrema of inner and outer rectangles.
         imin_x, imin_y, imax_x, imax_y = self._get_coords(start, end)
+        # TODO conversione coordinate
+        # start, end -> coordinate mouse rispetto window
+        # box_img_int -> coordinate immagine (ridimensionata) rispetto window
+
         print("coords: "+str(self._get_coords(start, end)))
+
         box_image = self.canvas.coords(self.container)  # get image area
-        print("box image coord " + str(box_image))
-        # TODO considera che mi prende le coordinate del mouse nella window, non sull'immagine.
-        omin_x, omin_y, omax_x, omax_y = 0, 0, self.width, self.height
+        box_canvas = (self.canvas.canvasx(0),  # get visible area of the canvas
+                      self.canvas.canvasy(0),
+                      self.canvas.canvasx(self.canvas.winfo_width()),
+                      self.canvas.canvasy(self.canvas.winfo_height()))
+        box_img_int = tuple(map(int, box_image))
+
+        print("box image coord " + str(box_img_int))
+        omin_x, omin_y, omax_x, omax_y = box_img_int
+        print("outer rect coord " + str((omin_x, omin_y, omax_x, omax_y)))
+        print("inner rect coord " + str((imin_x, imin_y, imax_x, imax_y)))
+
+        # omin_x, omin_y, omax_x, omax_y = 0, 0, self.width, self.height
         self.start = (imin_x, imin_y)
         self.end = (imax_x, imax_y)
         # Update coords of all rectangles based on these extrema.
@@ -134,10 +148,23 @@ class SelectionObject:
         """
         clamp = lambda n, minn, maxn: max(min(maxn, n), minn)
 
-        s0 = clamp(start[0], 0, self.canvas.pht_img.width() - 1)
-        e0 = clamp(end[0], 0, self.canvas.pht_img.width() - 1)
-        s1 = clamp(start[1], 0, self.canvas.pht_img.height() - 1)
-        e1 = clamp(end[1], 0, self.canvas.pht_img.height() - 1)
+        box_image = self.canvas.coords(self.container)  # get image area
+        box_img_int = tuple(map(int, box_image))
+        min_w = box_img_int[0]
+        min_h = box_img_int[1]
+        max_w = box_img_int[2]
+        max_h = box_img_int[3]
+        print("min_h: " + str(min_h)+", max_h: " + str(max_h))
+        print("min_w: " + str(min_w)+", max_w: " + str(max_w))
+        print("start, end: " + str(start) + ", " + str(end))
+        # s0 = clamp(start[0], 0, self.canvas.pht_img.width() - 1)
+        # e0 = clamp(end[0], 0, self.canvas.pht_img.width() - 1)
+        # s1 = clamp(start[1], 0, self.canvas.pht_img.height() - 1)
+        # e1 = clamp(end[1], 0, self.canvas.pht_img.height() - 1)
+        s0 = clamp(start[0], min_w, max_w - 1)
+        e0 = clamp(end[0], min_w, max_w - 1)
+        s1 = clamp(start[1], min_h, max_h - 1)
+        e1 = clamp(end[1], min_h, max_h - 1)
 
         return ((min((s0, e0)), min((s1, e1)),
                  max((s0, e0)), max((s1, e1))))
