@@ -224,10 +224,10 @@ class Tiling:
                                 end_h[0], end_h[1])
 
         self.top_border = Box(image, self.selection.start[0], self.selection.start[1],
-                              self.selection.end[0], self.selection.start[1]+self.border)
+                              self.selection.end[0], self.selection.start[1] + self.border)
 
         if (self.selection.end[1] + self.bv) > self.image.height:
-            start_v = ( self.selection.start[0], self.image.height - 2 * self.bv - self.border)
+            start_v = (self.selection.start[0], self.image.height - 2 * self.bv - self.border)
             end_v = (self.selection.end[0], self.image.height - 2 * self.bv)
         else:
             start_v = (self.selection.start[0], self.selection.end[1] - self.bv)
@@ -250,7 +250,6 @@ class Tiling:
         og_img = np.array(og_img)
         h_diff_values = []
         v_diff_values = []
-
 
         # ricerca orizzontale
         print("h border search area (size) " + str(self.bo))
@@ -287,9 +286,7 @@ class Tiling:
         print("Minimun (h) distanze between borders find at step " + str(min_diff_right[1]) + ": " + str(
             min_diff_right[0]))
 
-
-
-#++++++++++++++++++++++++++++++++++++++++++++++++++
+        #++++++++++++++++++++++++++++++++++++++++++++++++++
         # vertical search
         step = 0
         min_diff_bottom = (1, 0)  # tuple containing (min difference, step)
@@ -323,8 +320,7 @@ class Tiling:
         print("Minimun (v) distanze between borders find at step " + str(min_diff_bottom[1]) + ": " + str(
             min_diff_bottom[0]))
 
-#++++++++++++++++++++++++++++++++++++++++++++++++++
-
+        #++++++++++++++++++++++++++++++++++++++++++++++++++
 
         #aggiornamento valori bordo dx
         self.right_border.update(self.right_border.start[0] + min_diff_right[1], self.right_border.start[1],
@@ -334,11 +330,9 @@ class Tiling:
         self.bottom_border.update(self.bottom_border.start[0], self.bottom_border.start[1] + min_diff_bottom[1],
                                   self.bottom_border.end[0], self.bottom_border.end[1] + min_diff_bottom[1])
 
-        # self.module.set_end(self.selection.end[0] - self.bo + min_diff_right[1],
-                            # self.selection.end[1] - self.bv + min_diff_bottom[1])
+        # definizione estremi del modulo
         self.module.set_end(self.right_border.start[0],
                             self.bottom_border.start[1])
-        # print("end selection, bo, min_diff_right[1] :"+str( (self.selection.end[0], self.bo, min_diff_right[1])))
         self.module.set_start(self.selection.start[0], self.selection.start[1])
 
         # left, top, right, bottom
@@ -353,6 +347,7 @@ class Tiling:
         self.save_img(imgc, 'user_crop.png')
 
         imgm = Image.fromarray(np.array(module.convert('RGB')), mode='RGB')
+        self.tile_image(imgm)
         self.save_img(imgm, 'extracted_module.png')
 
         # area di ricerca
@@ -361,14 +356,40 @@ class Tiling:
         imgs = Image.fromarray(search_area, mode='RGB')
         self.save_img(imgs, 'search_area.png')
 
-        print("coords module: "+str((self.module.start[0], self.module.start[1], self.module.end[0], self.module.end[1])))
-        print("orig width and height: "+str(og_img.shape))
-
         self.plot(h_diff_values, self.bo, file_name="h_plot.png")
         self.plot(v_diff_values, self.bv, file_name="v_plot.png")
 
     # def _drop_alpha(self, img):
     #     return img if img.shape[-1] == 3 else img[:, :, 1:]
+
+    def tile_image(self, tile: Image.Image):
+        #     # Opens an image
+        # bg = Image.open("NOAHB.png")
+        #     # The width and height of the background tile
+        # bg_w, bg_h = bg.size
+        #     # Creates a new empty image, RGB mode, and size 1000 by 1000
+        # new_im = Image.new('RGB', (1000, 1000))
+        #     # The width and height of the new image
+        # w, h = new_im.size
+        #     # Iterate through a grid, to place the background tile
+        # for i in xrange(0, w, bg_w):
+        #     for j in xrange(0, h, bg_h):
+        #             # Change brightness of the images, just to emphasise they are unique copies
+        #         bg = Image.eval(bg, lambda x: x + (i + j) / 1000)
+        #             # paste the image at location i, j:
+        #         new_im.paste(bg, (i, j))
+        # new_im.show()
+        og_w = self.image.size[0]
+        og_h = self.image.size[1]
+        tile_w, tile_h = tile.size
+        xrepeat = og_w // tile_w
+        yrepeat = og_h // tile_h
+        tiled = Image.new('RGB', (xrepeat*tile_w, yrepeat*tile_h))
+
+        for i in range(0, xrepeat*tile_w, tile_w):
+            for j in range(0, yrepeat*tile_h, tile_h):
+                tiled.paste(tile, (i, j))
+        self.save_img(tiled, file_name="tiled.png")
 
     def normalize(self, arr):
         normalized = (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
