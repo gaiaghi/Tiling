@@ -186,15 +186,11 @@ class Box:
 
 
 class Tiling:
-    def __init__(self, image: Image.Image, selection: SelectionObject):
-        # tollerance for minimum distance
-        self.epsilon = 0.1
+    def __init__(self, image: Image.Image, selection: SelectionObject, border=5, search_area=0.15):
         # overlap border size with respect to the original image dimensions
-        self.search_ratio = 0.15
-        # search ratio
-        self.ratio = 0.25
+        self.search_ratio = search_area
         # overlap border size
-        self.border = 5  #TODO prova con 10 e 15
+        self.border = border  #TODO prova con 5, 10 e 15, 25
         # original image
         self.image = image
         # user selection
@@ -215,21 +211,29 @@ class Tiling:
         self.module = Box(image, self.selection.start[0], self.selection.start[1],
                           self.selection.end[0], self.selection.end[1])
 
-        if (self.selection.end[1]+2*self.border) < self.image.width:
-            start = (self.image.width - 2 * self.bo - self.border, self.selection.start[1]-self.bv)
-            end = (self.image.width - 2 * self.bo, self.selection.end[1]+self.bv)
+        if (self.selection.end[0] + self.bo) > self.image.width:
+            start_h = (self.image.width - 2 * self.bo - self.border, self.selection.start[1])
+            end_h = (self.image.width - 2 * self.bo, self.selection.end[1])
         else:
-            start = (self.selection.end[0] - self.bo, self.selection.start[1] - self.bv)
-            end = (self.selection.end[0] - self.bo + self.border, self.selection.end[1] + self.bv)
+            start_h = (self.selection.end[0] - self.bo, self.selection.start[1])
+            end_h = (self.selection.end[0] - self.bo + self.border, self.selection.end[1])
 
-        self.left_border = Box(image, self.selection.start[0], self.selection.start[1] - self.bv,
-                               self.selection.start[0] + self.border, self.selection.end[1] + self.bv)
-        self.right_border = Box(image, start[0], start[1],
-                                end[0], end[1])
+        self.left_border = Box(image, self.selection.start[0], self.selection.start[1],
+                               self.selection.start[0] + self.border, self.selection.end[1])
+        self.right_border = Box(image, start_h[0], start_h[1],
+                                end_h[0], end_h[1])
 
+        self.top_border = Box(image, self.selection.start[0], self.selection.start[1],
+                              self.selection.end[0], self.selection.start[1]+self.border)
 
-        # self.top_border = Box(image, self.selection.start[0], self.selection.start[1] - self.bv,
-        #                        self.selection.start[0] + self.border, self.selection.end[1] + self.bv)
+        if (self.selection.end[1] + self.bv) > self.image.height:
+            start_v = ( self.selection.start[0], self.image.height - 2 * self.bv - self.border)
+            end_v = (self.selection.end[0], self.image.height - 2 * self.bv)
+        else:
+            start_v = (self.selection.start[0], self.selection.end[1] - self.bv)
+            end_v = (self.selection.end[0], self.selection.end[1] - self.bv + self.border)
+
+        self.bottom_border = Box(image, start_v[0], start_v[1], end_v[0], end_v[1])
 
         crop_img = selection.crop(self.bo, self.bv)
         # user-selected image (with border) to matrix
@@ -265,10 +269,6 @@ class Tiling:
 
             right_border = og_img[r_start[1]: r_end[1], r_start[0]: r_end[0], :]
 
-            # TODO sempre collegato al caso overflow
-            # if r_end[0] > self.image.width:
-            #     break
-
             if step == 0:
                 print("user selection coord " + str(self.selection.start) + " " + str(self.selection.end))
                 print("orig. selected wxh = " + str(self.width) + "x" + str(self.height))
@@ -290,42 +290,37 @@ class Tiling:
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++
         # vertical search
-        # step = 0
-        # min_diff_bottom = (1, 0)  # tuple containing (min difference, step)
-        #
-        # # bordo top partendo dalla coordinata 0 della selezione dell'utenete
-        # top_border = self.top_border.mat
-        #
-        # # +++++++++++ fissato a sx, sposto il bordo di dx
-        # while step < 2 * self.bo:  # ricerca  nell'area tra -bo e +bo
-        #     print("############### STEP " + str(step))
-        #
-        #     r_start = (self.right_border.start[0] + step, self.right_border.start[1])
-        #     r_end = (self.right_border.end[0] + step, self.right_border.end[1])
-        #
-        #     right_border = og_img[r_start[1]: r_end[1], r_start[0]: r_end[0], :]
-        #
-        #     # TODO sempre collegato al caso overflow
-        #     # if r_end[0] > self.image.width:
-        #     #     break
-        #
-        #     if step == 0:
-        #         print("user selection coord " + str(self.selection.start) + " " + str(self.selection.end))
-        #         print("orig. selected wxh = " + str(self.width) + "x" + str(self.height))
-        #         print("left border shape = " + str(left_border.shape))
-        #         print("right border shape = " + str(right_border.shape))
-        #
-        #     diff = self.normalize(right_border) - self.normalize(left_border)
-        #     m_norm = sum(sum(sum(abs(diff)))) / right_border.size  # Manhattan norm
-        #     if m_norm < min_diff_right[0]:
-        #         min_diff_right = (m_norm, step)
-        #     h_diff_values.append(m_norm)
-        #     print("diff (M norm): " + str(m_norm))
-        #     step += 1
-        #
-        # print("Minimun (h) distanze between borders find at step " + str(min_diff_right[1]) + ": " + str(
-        #     min_diff_right[0]))
-        #
+        step = 0
+        min_diff_bottom = (1, 0)  # tuple containing (min difference, step)
+
+        # bordo top partendo dalla coordinata 0 della selezione dell'utenete
+        top_border = self.top_border.mat
+
+        # +++++++++++ fissato top, sposto il bordo bottom
+        while step < 2 * self.bv:  # ricerca  nell'area tra -bo e +bo
+            print("############### v STEP " + str(step))
+
+            b_start = (self.bottom_border.start[0], self.bottom_border.start[1] + step)
+            b_end = (self.bottom_border.end[0], self.bottom_border.end[1] + step)
+
+            bottom_border = og_img[b_start[1]: b_end[1], b_start[0]: b_end[0], :]
+
+            if step == 0:
+                print("user selection coord " + str(self.selection.start) + " " + str(self.selection.end))
+                print("orig. selected wxh = " + str(self.width) + "x" + str(self.height))
+                print("right border shape = " + str(top_border.shape))
+                print("bottom border shape = " + str(bottom_border.shape))
+
+            diff = self.normalize(bottom_border) - self.normalize(top_border)
+            m_norm = sum(sum(sum(abs(diff)))) / bottom_border.size  # Manhattan norm
+            if m_norm < min_diff_bottom[0]:
+                min_diff_bottom = (m_norm, step)
+            h_diff_values.append(m_norm)
+            print("diff (M norm): " + str(m_norm))
+            step += 1
+
+        print("Minimun (v) distanze between borders find at step " + str(min_diff_bottom[1]) + ": " + str(
+            min_diff_bottom[0]))
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -334,8 +329,12 @@ class Tiling:
         self.right_border.update(self.right_border.start[0] + min_diff_right[1], self.right_border.start[1],
                                  self.right_border.end[0] + min_diff_right[1], self.right_border.end[1])
 
+        #aggiornamento valori bordo sotto
+        self.bottom_border.update(self.bottom_border.start[0], self.bottom_border.start[1] + min_diff_bottom[1],
+                                  self.bottom_border.end[0], self.bottom_border.end[1] + min_diff_bottom[1])
+
         self.module.set_end(self.selection.end[0] - self.bo + min_diff_right[1],
-                            self.selection.end[1])
+                            self.selection.end[1] - self.bv + min_diff_bottom[1])
         self.module.set_start(self.selection.start[0], self.selection.start[1])
 
         # left, top, right, bottom
@@ -343,6 +342,8 @@ class Tiling:
 
         self.save_img(self.left_border.img, 'left_border.png')
         self.save_img(self.right_border.img, 'right_border.png')
+        self.save_img(self.top_border.img, 'top_border.png')
+        self.save_img(self.bottom_border.img, 'bottom_border.png')
 
         imgc = Image.fromarray(np.array(self.selection.crop().convert('RGB')), mode='RGB')
         self.save_img(imgc, 'user_crop.png')
