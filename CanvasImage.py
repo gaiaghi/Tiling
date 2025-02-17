@@ -6,11 +6,14 @@ import warnings
 import tkinter as tk
 
 from tkinter import ttk
+from tkinter.ttk import Style
+
 from PIL import Image, ImageTk
 
 #   TODO parte mia
 SELECT_OPTS = dict(dash=(2, 2), stipple='gray25', fill='white',
                    outline='')
+BACKGROUND = '#292929'
 
 
 class MousePositionTracker(tk.Frame):
@@ -163,9 +166,10 @@ class SelectionObject:
         min_h = box_img_int[1]
         max_w = box_img_int[2]
         max_h = box_img_int[3]
+        print("box size " + str(self.container))
+        print("selection start end: " + str(start) + ", " + str(end))
         print("min_h: " + str(min_h) + ", max_h: " + str(max_h))
         print("min_w: " + str(min_w) + ", max_w: " + str(max_w))
-        print("start, end: " + str(start) + ", " + str(end))
         # s0 = clamp(start[0], 0, self.canvas.pht_img.width() - 1)
         # e0 = clamp(end[0], 0, self.canvas.pht_img.width() - 1)
         # s1 = clamp(start[1], 0, self.canvas.pht_img.height() - 1)
@@ -174,6 +178,7 @@ class SelectionObject:
         e0 = clamp(end[0], min_w, max_w - 1)
         s1 = clamp(start[1], min_h, max_h - 1)
         e1 = clamp(end[1], min_h, max_h - 1)
+        print("s0: " + str(s0) + ", e0: " + str(e0) + ",s1: " + str(s1) + ", e1: " + str(e1))
 
         return ((min((s0, e0)), min((s1, e1)),
                  max((s0, e0)), max((s1, e1))))
@@ -195,7 +200,10 @@ class SelectionObject:
     #     return cropped
 
     def crop(self, h_border=0, v_border=0) -> Image.Image:
-        left, top, right, bottom = self._get_coords(self.start, self.end)
+        # left, top, right, bottom = self._get_coords(self.start, self.end)
+        left, top = self.start
+        right, bottom = self.end
+        print("coordinate CROP " + str((left, top, right, bottom)))
         cropped = self.canvas.img.crop((left - h_border, top - v_border, right + h_border, bottom + v_border))
         # print("width= " + str(cropped.width) + ", height= " + str(cropped.height))
         # cropped.show()
@@ -241,7 +249,7 @@ class CanvasImage:
 
         # Create canvas and bind it with scrollbars. Public for outer classes
         self.canvas = tk.Canvas(self.__imframe, highlightthickness=0,
-                                xscrollcommand=hbar.set, yscrollcommand=vbar.set)
+                                xscrollcommand=hbar.set, yscrollcommand=vbar.set, background=BACKGROUND)
         self.canvas.grid(row=0, column=0, sticky='nswe')
         self.canvas.update()  # wait till canvas is created
         hbar.configure(command=self.__scroll_x)  # bind scrollbars to the canvas
