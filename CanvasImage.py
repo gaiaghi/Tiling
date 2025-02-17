@@ -7,9 +7,12 @@ import tkinter as tk
 
 from tkinter import ttk
 from PIL import Image, ImageTk
+
 #   TODO parte mia
 SELECT_OPTS = dict(dash=(2, 2), stipple='gray25', fill='white',
                    outline='')
+
+
 class MousePositionTracker(tk.Frame):
     """ Tkinter Canvas mouse position widget. """
 
@@ -111,27 +114,23 @@ class SelectionObject:
     def update(self, start, end):
         # Current extrema of inner and outer rectangles.
         imin_x, imin_y, imax_x, imax_y = self._get_coords(start, end)
-        # TODO conversione coordinate
-        # start, end -> coordinate mouse rispetto window
-        # box_img_int -> coordinate immagine (ridimensionata) rispetto window
+        # TODO controllo coordinate con pan che non funzionano (_get_coords)
 
-        print("coords: "+str(self._get_coords(start, end)))
-
+        # print("coords: " + str(self._get_coords(start, end)))
         box_image = self.canvas.coords(self.container)  # get image area
-        box_canvas = (self.canvas.canvasx(0),  # get visible area of the canvas
-                      self.canvas.canvasy(0),
-                      self.canvas.canvasx(self.canvas.winfo_width()),
-                      self.canvas.canvasy(self.canvas.winfo_height()))
         box_img_int = tuple(map(int, box_image))
 
         print("box image coord " + str(box_img_int))
         omin_x, omin_y, omax_x, omax_y = box_img_int
-        print("outer rect coord " + str((omin_x, omin_y, omax_x, omax_y)))
-        print("inner rect coord " + str((imin_x, imin_y, imax_x, imax_y)))
-
+        # print("outer rect coord " + str((omin_x, omin_y, omax_x, omax_y)))
+        # print("inner rect coord " + str((imin_x, imin_y, imax_x, imax_y)))
+        up_coord = self._coord_mapping((imin_x, imin_y, imax_x, imax_y), box_img_int)
+        print("UP COORD ---- " + str(up_coord))
         # omin_x, omin_y, omax_x, omax_y = 0, 0, self.width, self.height
-        self.start = (imin_x, imin_y)
-        self.end = (imax_x, imax_y)
+        # self.start = (imin_x, imin_y)
+        # self.end = (imax_x, imax_y)
+        self.start = (up_coord[0], up_coord[1])
+        self.end = (up_coord[2], up_coord[3])
         # Update coords of all rectangles based on these extrema.
         self.canvas.coords(self.rects[0], omin_x, omin_y, omax_x, imin_y),
         self.canvas.coords(self.rects[1], omin_x, imin_y, imin_x, imax_y),
@@ -141,6 +140,16 @@ class SelectionObject:
 
         for rect in self.rects:  # Make sure all are now visible.
             self.canvas.itemconfigure(rect, state=tk.NORMAL)
+
+    def _coord_mapping(self, selection, box):
+        og_h = self.height
+        og_w = self.width
+        h_ratio = og_h / (box[3] - box[1])
+        w_ratio = og_w / (box[2] - box[0])
+        coord = ((selection[0] - box[0]) * w_ratio, (selection[1] - box[1]) * h_ratio,
+                 (selection[2] - box[0]) * w_ratio, (selection[3] - box[1]) * h_ratio)
+
+        return tuple(map(lambda n: math.ceil(n), coord))
 
     def _get_coords(self, start, end):
         """ Determine coords of a polygon defined by the start and
@@ -154,8 +163,8 @@ class SelectionObject:
         min_h = box_img_int[1]
         max_w = box_img_int[2]
         max_h = box_img_int[3]
-        print("min_h: " + str(min_h)+", max_h: " + str(max_h))
-        print("min_w: " + str(min_w)+", max_w: " + str(max_w))
+        print("min_h: " + str(min_h) + ", max_h: " + str(max_h))
+        print("min_w: " + str(min_w) + ", max_w: " + str(max_w))
         print("start, end: " + str(start) + ", " + str(end))
         # s0 = clamp(start[0], 0, self.canvas.pht_img.width() - 1)
         # e0 = clamp(end[0], 0, self.canvas.pht_img.width() - 1)
@@ -191,10 +200,13 @@ class SelectionObject:
         # print("width= " + str(cropped.width) + ", height= " + str(cropped.height))
         # cropped.show()
         return cropped
+
+
 # TODO fine parte mia
 
 class AutoScrollbar(ttk.Scrollbar):
     """ A scrollbar that hides itself if it's not needed. Works only for grid geometry manager """
+
     def set(self, lo, hi):
         if float(lo) <= 0.0 and float(hi) >= 1.0:
             self.grid_remove()
@@ -208,13 +220,15 @@ class AutoScrollbar(ttk.Scrollbar):
     def place(self, **kw):
         raise tk.TclError('Cannot use place with the widget ' + self.__class__.__name__)
 
+
 class CanvasImage:
     """ Display and zoom image """
+
     def __init__(self, placeholder, path):
         """ Initialize the ImageFrame """
         self.imscale = 1.0  # scale for the canvas image zoom, public for outer classes
         self.__delta = 1.3  # zoom magnitude
-        self.__filter = Image.Resampling.LANCZOS   # could be: NEAREST, BILINEAR, BICUBIC and ANTIALIAS
+        self.__filter = Image.Resampling.LANCZOS  # could be: NEAREST, BILINEAR, BICUBIC and ANTIALIAS
         self.__previous_state = 0  # previous state of the keyboard
         self.path = path  # path to the image, should be public for outer classes
         # Create ImageFrame in placeholder widget
@@ -238,10 +252,10 @@ class CanvasImage:
         # self.canvas.bind('<ButtonPress-1>', self.__move_from)  # remember canvas position
         # self.canvas.bind('<B1-Motion>',     self.__move_to)  # move canvas to the new position
         self.canvas.bind('<Button-3>', self.__move_from)  # remember canvas position
-        self.canvas.bind('<B3-Motion>',     self.__move_to)  # move canvas to the new position
+        self.canvas.bind('<B3-Motion>', self.__move_to)  # move canvas to the new position
         self.canvas.bind('<MouseWheel>', self.__wheel)  # zoom for Windows and MacOS, but not Linux
-        self.canvas.bind('<Button-5>',   self.__wheel)  # zoom for Linux, wheel scroll down
-        self.canvas.bind('<Button-4>',   self.__wheel)  # zoom for Linux, wheel scroll up
+        self.canvas.bind('<Button-5>', self.__wheel)  # zoom for Linux, wheel scroll down
+        self.canvas.bind('<Button-4>', self.__wheel)  # zoom for Linux, wheel scroll up
 
         # TODO prova bind combinato
         # self.canvas.bind("<Key> <Button-1>", pressed)
@@ -259,7 +273,7 @@ class CanvasImage:
             self.__image = Image.open(self.path)  # open image, but down't load it
         self.imwidth, self.imheight = self.__image.size  # public for outer classes
         if self.imwidth * self.imheight > self.__huge_size * self.__huge_size and \
-           self.__image.tile[0][0] == 'raw':  # only raw images could be tiled
+                self.__image.tile[0][0] == 'raw':  # only raw images could be tiled
             self.__huge = True  # image is huge
             self.__offset = self.__image.tile[0][2]  # initial tile offset
             self.__tile = [self.__image.tile[0][0],  # it have to be 'raw'
@@ -337,10 +351,10 @@ class CanvasImage:
             self.__image.size = (self.imwidth, band)  # set size of the tile band
             self.__image.tile = [self.__tile]  # set tile
             cropped = self.__image.crop((0, 0, self.imwidth, band))  # crop tile band
-            image.paste(cropped.resize((w, int(band * k)+1), self.__filter), (0, int(i * k)))
+            image.paste(cropped.resize((w, int(band * k) + 1), self.__filter), (0, int(i * k)))
             i += band
             j += 1
-        print('\r' + 30*' ' + '\r', end='')  # hide printed string
+        print('\r' + 30 * ' ' + '\r', end='')  # hide printed string
         return image
 
     def redraw_figures(self):
@@ -386,13 +400,13 @@ class CanvasImage:
         box_scroll = [min(box_img_int[0], box_canvas[0]), min(box_img_int[1], box_canvas[1]),
                       max(box_img_int[2], box_canvas[2]), max(box_img_int[3], box_canvas[3])]
         # Horizontal part of the image is in the visible area
-        if  box_scroll[0] == box_canvas[0] and box_scroll[2] == box_canvas[2]:
-            box_scroll[0]  = box_img_int[0]
-            box_scroll[2]  = box_img_int[2]
+        if box_scroll[0] == box_canvas[0] and box_scroll[2] == box_canvas[2]:
+            box_scroll[0] = box_img_int[0]
+            box_scroll[2] = box_img_int[2]
         # Vertical part of the image is in the visible area
-        if  box_scroll[1] == box_canvas[1] and box_scroll[3] == box_canvas[3]:
-            box_scroll[1]  = box_img_int[1]
-            box_scroll[3]  = box_img_int[3]
+        if box_scroll[1] == box_canvas[1] and box_scroll[3] == box_canvas[3]:
+            box_scroll[1] = box_img_int[1]
+            box_scroll[3] = box_img_int[3]
         # Convert scroll region to tuple and to integer
         self.canvas.configure(scrollregion=tuple(map(int, box_scroll)))  # set scroll region
         x1 = max(box_canvas[0] - box_image[0], 0)  # get coordinates (x1,y1,x2,y2) of the image tile
@@ -411,8 +425,8 @@ class CanvasImage:
                 image = self.__image.crop((int(x1 / self.imscale), 0, int(x2 / self.imscale), h))
             else:  # show normal image
                 image = self.__pyramid[max(0, self.__curr_img)].crop(  # crop current img from pyramid
-                                    (int(x1 / self.__scale), int(y1 / self.__scale),
-                                     int(x2 / self.__scale), int(y2 / self.__scale)))
+                    (int(x1 / self.__scale), int(y1 / self.__scale),
+                     int(x2 / self.__scale), int(y2 / self.__scale)))
             #
             imagetk = ImageTk.PhotoImage(image.resize((int(x2 - x1), int(y2 - y1)), self.__filter))
             imageid = self.canvas.create_image(max(box_canvas[0], box_img_int[0]),
@@ -448,12 +462,12 @@ class CanvasImage:
         if event.num == 5 or event.delta == -120:  # scroll down, smaller
             if round(self.__min_side * self.imscale) < 30: return  # image is less than 30 pixels
             self.imscale /= self.__delta
-            scale        /= self.__delta
+            scale /= self.__delta
         if event.num == 4 or event.delta == 120:  # scroll up, bigger
             i = min(self.canvas.winfo_width(), self.canvas.winfo_height()) >> 1
             if i < self.imscale: return  # 1 pixel is bigger than the visible area
             self.imscale *= self.__delta
-            scale        *= self.__delta
+            scale *= self.__delta
         # Take appropriate image from the pyramid
         k = self.imscale * self.__ratio  # temporary coefficient
         self.__curr_img = min((-1) * int(math.log(k, self.__reduction)), len(self.__pyramid) - 1)
@@ -473,13 +487,13 @@ class CanvasImage:
             self.__previous_state = event.state  # remember the last keystroke state
             # Up, Down, Left, Right keystrokes
             if event.keycode in [68, 39, 102]:  # scroll right: keys 'D', 'Right' or 'Numpad-6'
-                self.__scroll_x('scroll',  1, 'unit', event=event)
+                self.__scroll_x('scroll', 1, 'unit', event=event)
             elif event.keycode in [65, 37, 100]:  # scroll left: keys 'A', 'Left' or 'Numpad-4'
                 self.__scroll_x('scroll', -1, 'unit', event=event)
             elif event.keycode in [87, 38, 104]:  # scroll up: keys 'W', 'Up' or 'Numpad-8'
                 self.__scroll_y('scroll', -1, 'unit', event=event)
             elif event.keycode in [83, 40, 98]:  # scroll down: keys 'S', 'Down' or 'Numpad-2'
-                self.__scroll_y('scroll',  1, 'unit', event=event)
+                self.__scroll_y('scroll', 1, 'unit', event=event)
 
     def crop(self, bbox):
         """ Crop rectangle from the image and return it """
