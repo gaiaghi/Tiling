@@ -508,18 +508,23 @@ class Application(tk.Frame):
     def load_image(self, event=None):
         file_path = filedialog.askopenfilename(title="Open Image...",
                                                filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif *.bmp *.ico")])
-        if file_path:
-            self.canvas.img = Image.open(file_path)
-            self.canvas.pht_img = ImageTk.PhotoImage(self.canvas.img)
-            self.canvas.orig = self.canvas.pht_img
-            self.canvas.itemconfig(self.displayed_img, image=self.canvas.pht_img)
-            self.canvas.config(height=self.canvas.pht_img.height(), width=self.canvas.pht_img.width())
-            self.selection_obj.height = self.canvas.pht_img.height()
-            self.selection_obj.width = self.canvas.pht_img.width()
-            self.selection_obj.clear()
+        self.canvas.destroy()
+        self.canvas = CanvasImage(self.master, file_path)  # create widget
+        self.canvas.grid(row=0, column=0)
+        # if file_path:
+        #     self.canvas.img = Image.open(file_path)
+        #     self.canvas.pht_img = ImageTk.PhotoImage(self.canvas.img)
+        #     self.canvas.orig = self.canvas.pht_img
+        #     # self.canvas.itemconfig(self.displayed_img, image=self.canvas.pht_img)
+        #     # self.canvas.config(height=self.canvas.pht_img.height(), width=self.canvas.pht_img.width())
+        #     self.canvas.canvas.itemconfig(self.canvas.displayed_img, image=self.canvas.pht_img)
+        #     self.canvas.canvas.config(height=self.canvas.pht_img.height(), width=self.canvas.pht_img.width())
+        #     self.canvas.selection_obj.height = self.canvas.pht_img.height()
+        #     self.canvas.selection_obj.width = self.canvas.pht_img.width()
+        #     self.canvas.selection_obj.clear()
 
     def start_tiling(self, event=None):
-        self.tiling = Tiling(self.canvas.img, self.selection_obj)
+        self.tiling = Tiling(self.canvas.canvas.img, self.canvas.selection_obj)
 
     def do_popup(self, event=None):
         """ Right click event handler to open the popup menu.
@@ -530,17 +535,17 @@ class Application(tk.Frame):
             self.popup_menu.grab_release()
 
     def crop_selected(self):
-        img = self.selection_obj.crop()
+        img = self.canvas.selection_obj.crop()
         self.canvas.img = img
         self.canvas.pht_img = ImageTk.PhotoImage(self.canvas.img)
-        self.canvas.itemconfig(self.displayed_img, image=self.canvas.pht_img)
-        self.canvas.config(height=self.canvas.pht_img.height(), width=self.canvas.pht_img.width())
-        self.selection_obj.height = self.canvas.pht_img.height()
-        self.selection_obj.width = self.canvas.pht_img.width()
-        self.selection_obj.clear()
+        self.canvas.canvas.itemconfig(self.canvas.displayed_img, image=self.canvas.pht_img)
+        self.canvas.canvas.config(height=self.canvas.pht_img.height(), width=self.canvas.pht_img.width())
+        self.canvas.selection_obj.height = self.canvas.pht_img.height()
+        self.canvas.selection_obj.width = self.canvas.pht_img.width()
+        self.canvas.selection_obj.clear()
 
     def save_selected(self):
-        img = self.selection_obj.crop()
+        img = self.canvas.selection_obj.crop()
         file = filedialog.asksaveasfile(mode='w', defaultextension=".png")
         if file:
             abs_path = os.path.abspath(file.name)
