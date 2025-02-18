@@ -78,7 +78,7 @@ class SelectionObject:
         representing its diagonal.
     """
 
-    def __init__(self, canvas, container, width, height, select_opts):
+    def __init__(self, canvas, container, width, height, select_opts, coords=None):
         # Create attributes needed to display selection.
         self.canvas = canvas
         self.select_opts1 = select_opts
@@ -89,8 +89,12 @@ class SelectionObject:
         self.container = container
         # inizio e fine dell'area selezionabile
         # all'inizio coincide con l'area dell'immagine a grandezza naturale
-        self.start = (0, 0)
-        self.end = (self.width, self.height)
+        if coords is None:
+            self.start = (0, 0)
+            self.end = (self.width, self.height)
+        else:
+            self.start = (coords[0], coords[1])
+            self.end = (coords[2], coords[3])
 
         # Options for areas outside rectanglar selection.
         select_opts1 = self.select_opts1.copy()  # Avoid modifying passed argument.
@@ -111,6 +115,9 @@ class SelectionObject:
             # Inner rectangle.
             self.canvas.create_rectangle(imin_x, imin_y, imax_x, imax_y, **select_opts2)
         )
+
+        if coords is not None:
+            self.update(self.start, self.end)
 
         self.canvas.bind("<Double-Button-1>", self.clear)
 
@@ -228,7 +235,7 @@ class AutoScrollbar(ttk.Scrollbar):
 class CanvasImage:
     """ Display and zoom image """
 
-    def __init__(self, placeholder, path=None, img: Image.Image = None):
+    def __init__(self, placeholder, path=None, img: Image.Image = None, coords = None):
         """ Initialize the ImageFrame """
         if path is None and img is None:
             sys.exit('Cannot open image')
@@ -328,7 +335,7 @@ class CanvasImage:
         self.canvas.orig = self.canvas.pht_img  # keep reference of original image
 
         # Create selection object to show current selection boundaries.
-        self.selection_obj = SelectionObject(self.canvas, self.container, self.imwidth, self.imheight, SELECT_OPTS)
+        self.selection_obj = SelectionObject(self.canvas, self.container, self.imwidth, self.imheight, SELECT_OPTS, coords=coords)
 
         # Callback function to update it given two points of its diagonal.
         def on_drag(start, end, **kwarg):  # Must accept these arguments.

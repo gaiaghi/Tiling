@@ -1,5 +1,6 @@
 import os
 import os.path
+import argparse
 import tkinter as tk
 import numpy as np
 from tkinter import filedialog
@@ -292,12 +293,12 @@ class Application(tk.Frame):
     SELECT_OPTS = dict(dash=(2, 2), stipple='gray25', fill='white',
                        outline='')
 
-    def __init__(self, parent, *args, **kwargs):
+    def __init__(self, parent, coords=None, imgpath=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
 
         self.master.rowconfigure(0, weight=1)  # make the CanvasImage widget expandable
         self.master.columnconfigure(0, weight=1)
-        self.canvas = CanvasImage(self.master, path="img/2fili.png")  # create widget
+        self.canvas = CanvasImage(self.master, path=imgpath, coords=coords)  # create widget
         self.canvas.grid(row=0, column=0)  # show widget
 
         #menu bar creation
@@ -390,12 +391,38 @@ class Application(tk.Frame):
             tk.messagebox.showinfo("Update image with tiled texture", "Nothing to update. Start the tiling method before updating.")
 
 if __name__ == '__main__':
-    TITLE = 'Tiling'
+    global TSTAMP
+    global COORDS
+    global IMGPATH
 
+    parser = argparse.ArgumentParser()
+    # Adding optional argument
+    parser.add_argument("-c", "--Coords", help="Insert manual coordinates for tiling.",
+                        nargs=4, default=None, const=None, type=int)
+    parser.add_argument("-t", "--Timestamp", help="Add timestamps to filename of saved images.",
+                        nargs='?', default=None, const=True, type=bool)
+    parser.add_argument("-i", "--Image", help="Path to the image to open.", nargs='?',
+                        default="img/2fili.png", const="img/2fili.png", type=str)
+    # parser.add_argument("-b", "--Batch", help="Batch mode.")
+    # Read arguments from command line
+    args = parser.parse_args()
+
+    TSTAMP = args.Timestamp
+    print("TSTAMP: ", TSTAMP)
+    # COORDS = tuple(int(num) for num in args.Coords.strip("()").split(','))
+    COORDS = args.Coords
+    print("COORDS: ", COORDS)
+    IMGPATH = args.Image
+    print("IMGPATH: ", IMGPATH)
+
+
+
+
+    TITLE = 'Tiling'
     root = tk.Tk()
     root.title(TITLE)
     root.geometry('%sx%s' % (WIDTH, HEIGHT))
     root.configure(background=BACKGROUND)
 
-    app = Application(root, background=BACKGROUND)
+    app = Application(root, coords=COORDS, background=BACKGROUND, imgpath=IMGPATH)
     app.mainloop()
