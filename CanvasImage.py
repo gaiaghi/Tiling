@@ -2,6 +2,7 @@
 # og code by https://github.com/foobar167/
 # Advanced zoom for images of various types from small to huge up to several GB
 import math
+import sys
 import warnings
 import tkinter as tk
 
@@ -117,6 +118,8 @@ class SelectionObject:
     def update(self, start, end):
         # Current extrema of inner and outer rectangles.
         imin_x, imin_y, imax_x, imax_y = self._get_coords(start, end)
+        if not all( (imin_x, imin_y, imax_x, imax_y)):
+            return None
         # TODO controllo coordinate con pan che non funzionano (_get_coords)
 
         # print("coords: " + str(self._get_coords(start, end)))
@@ -158,6 +161,10 @@ class SelectionObject:
         """ Determine coords of a polygon defined by the start and
             end points one of the diagonals of a rectangular area.
         """
+        print(start)
+        if start is None:
+            return (None, None, None, None)
+
         clamp = lambda n, minn, maxn: max(min(maxn, n), minn)
 
         box_image = self.canvas.coords(self.container)  # get image area
@@ -166,19 +173,12 @@ class SelectionObject:
         min_h = box_img_int[1]
         max_w = box_img_int[2]
         max_h = box_img_int[3]
-        print("box size " + str(self.container))
-        print("selection start end: " + str(start) + ", " + str(end))
-        print("min_h: " + str(min_h) + ", max_h: " + str(max_h))
-        print("min_w: " + str(min_w) + ", max_w: " + str(max_w))
-        # s0 = clamp(start[0], 0, self.canvas.pht_img.width() - 1)
-        # e0 = clamp(end[0], 0, self.canvas.pht_img.width() - 1)
-        # s1 = clamp(start[1], 0, self.canvas.pht_img.height() - 1)
-        # e1 = clamp(end[1], 0, self.canvas.pht_img.height() - 1)
+        # print("min_h: " + str(min_h) + ", max_h: " + str(max_h))
+        # print("min_w: " + str(min_w) + ", max_w: " + str(max_w))
         s0 = clamp(start[0], min_w, max_w - 1)
         e0 = clamp(end[0], min_w, max_w - 1)
         s1 = clamp(start[1], min_h, max_h - 1)
         e1 = clamp(end[1], min_h, max_h - 1)
-        print("s0: " + str(s0) + ", e0: " + str(e0) + ",s1: " + str(s1) + ", e1: " + str(e1))
 
         return ((min((s0, e0)), min((s1, e1)),
                  max((s0, e0)), max((s1, e1))))
@@ -192,21 +192,11 @@ class SelectionObject:
         self.start = (0, 0)
         self.end = (self.width, self.height)
 
-    # def crop(self) -> Image.Image:
-    #     left, top, right, bottom = self._get_coords(self.start, self.end)
-    #     cropped = self.canvas.img.crop((left, top, right, bottom))
-    #     # print("width= " + str(cropped.width) + ", height= " + str(cropped.height))
-    #     # cropped.show()
-    #     return cropped
-
     def crop(self, h_border=0, v_border=0) -> Image.Image:
         # left, top, right, bottom = self._get_coords(self.start, self.end)
         left, top = self.start
         right, bottom = self.end
-        print("coordinate CROP " + str((left, top, right, bottom)))
         cropped = self.canvas.img.crop((left - h_border, top - v_border, right + h_border, bottom + v_border))
-        # print("width= " + str(cropped.width) + ", height= " + str(cropped.height))
-        # cropped.show()
         return cropped
 
 
@@ -232,13 +222,16 @@ class AutoScrollbar(ttk.Scrollbar):
 class CanvasImage:
     """ Display and zoom image """
 
-    def __init__(self, placeholder, path):
+    def __init__(self, placeholder, path=None, img:Image.Image=None):
         """ Initialize the ImageFrame """
+        if path is None and img is None:
+            sys.exit('Cannot open image')
         self.imscale = 1.0  # scale for the canvas image zoom, public for outer classes
         self.__delta = 1.3  # zoom magnitude
         self.__filter = Image.Resampling.LANCZOS  # could be: NEAREST, BILINEAR, BICUBIC and ANTIALIAS
         self.__previous_state = 0  # previous state of the keyboard
         self.path = path  # path to the image, should be public for outer classes
+        self.imgpath = img
         # Create ImageFrame in placeholder widget
         self.__imframe = ttk.Frame(placeholder)  # placeholder of the ImageFrame object
         # Vertical and horizontal scrollbars for canvas
@@ -278,7 +271,10 @@ class CanvasImage:
         Image.MAX_IMAGE_PIXELS = 1000000000  # suppress DecompressionBombError for the big image
         with warnings.catch_warnings():  # suppress DecompressionBombWarning
             warnings.simplefilter('ignore')
-            self.__image = Image.open(self.path)  # open image, but down't load it
+            if self.path is not None:
+                self.__image = Image.open(self.path)  # open image, but down't load it
+            else:
+                self.__image = self.imgpath
         self.imwidth, self.imheight = self.__image.size  # public for outer classes
         if self.imwidth * self.imheight > self.__huge_size * self.__huge_size and \
                 self.__image.tile[0][0] == 'raw':  # only raw images could be tiled
@@ -290,7 +286,11 @@ class CanvasImage:
                            self.__image.tile[0][3]]  # list of arguments to the decoder
         self.__min_side = min(self.imwidth, self.imheight)  # get the smaller image side
         # Create image pyramid
-        self.__pyramid = [self.smaller()] if self.__huge else [Image.open(self.path)]
+        if self.path is not None:
+            tmp_img = Image.open(self.path)
+        else:
+            tmp_img = self.imgpath
+        self.__pyramid = [self.smaller()] if self.__huge else [tmp_img]
         # Set ratio coefficient for image pyramid
         self.__ratio = max(self.imwidth, self.imheight) / self.__huge_size if self.__huge else 1.0
         self.__curr_img = 0  # current image from the pyramid
@@ -307,7 +307,10 @@ class CanvasImage:
         self.canvas.focus_set()  # set focus on the canvas
         # TODO parte mia
         # path = "img/basket_normal.png"
-        img = Image.open(path)
+        if self.path is not None:
+            img = Image.open(path)
+        else:
+            img = self.imgpath
         pht_img = ImageTk.PhotoImage(img)
         # self.canvas = tk.Canvas(root, width=pht_img.width(), height=pht_img.height(),
         #                         borderwidth=0, highlightthickness=0)
@@ -355,7 +358,11 @@ class CanvasImage:
             self.__tile[1][3] = band  # set band width
             self.__tile[2] = self.__offset + self.imwidth * i * 3  # tile offset (3 bytes per pixel)
             self.__image.close()
-            self.__image = Image.open(self.path)  # reopen / reset image
+            if self.path is not None:
+                self.__image = Image.open(self.path)  # reopen / reset image
+            else:
+                self.__image = self.imgpath
+
             self.__image.size = (self.imwidth, band)  # set size of the tile band
             self.__image.tile = [self.__tile]  # set tile
             cropped = self.__image.crop((0, 0, self.imwidth, band))  # crop tile band
@@ -427,7 +434,10 @@ class CanvasImage:
                 self.__tile[1][3] = h  # set the tile band height
                 self.__tile[2] = self.__offset + self.imwidth * int(y1 / self.imscale) * 3
                 self.__image.close()
-                self.__image = Image.open(self.path)  # reopen / reset image
+                if self.path is not None:
+                    self.__image = Image.open(self.path)  # reopen / reset image
+                else:
+                    self.__image = self.imgpath
                 self.__image.size = (self.imwidth, h)  # set size of the tile band
                 self.__image.tile = [self.__tile]
                 image = self.__image.crop((int(x1 / self.imscale), 0, int(x2 / self.imscale), h))
@@ -511,7 +521,10 @@ class CanvasImage:
             self.__tile[1][3] = band  # set the tile height
             self.__tile[2] = self.__offset + self.imwidth * bbox[1] * 3  # set offset of the band
             self.__image.close()
-            self.__image = Image.open(self.path)  # reopen / reset image
+            if self.path is not None:
+                self.__image = Image.open(self.path)  # reopen / reset image
+            else:
+                self.__image = self.imgpath
             self.__image.size = (self.imwidth, band)  # set size of the tile band
             self.__image.tile = [self.__tile]
             return self.__image.crop((bbox[0], 0, bbox[2], band))

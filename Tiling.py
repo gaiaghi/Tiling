@@ -3,16 +3,19 @@ import os.path
 import tkinter as tk
 import numpy as np
 from tkinter import filedialog
+from tkinter import messagebox
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from PIL import Image, ImageTk
+from datetime import datetime
 
 from CanvasImage import CanvasImage
 from CanvasImage import SelectionObject
 from CanvasImage import MousePositionTracker
 
 OUT_DIR = './out/'
-
+WIDTH, HEIGHT = 900, 900
+BACKGROUND = '#292929'
 
 #TODO dataclass ?
 class Box:
@@ -43,8 +46,10 @@ class Box:
 
 
 class Tiling:
-    def __init__(self, image: Image.Image, selection: SelectionObject, border=5, search_area=0.15):
+    def __init__(self, master, image: Image.Image, selection: SelectionObject, border=5, search_area=0.15):
         # overlap border size with respect to the original image dimensions
+        self.tiled = None
+        self.master = master
         self.search_ratio = search_area
         # overlap border size
         self.border = border  #TODO prova con 5, 10 e 15, 25
@@ -195,6 +200,10 @@ class Tiling:
         # left, top, right, bottom
         module = self.image.crop((self.module.start[0], self.module.start[1], self.module.end[0], self.module.end[1]))
 
+        # tile extracted module
+        imgm = Image.fromarray(np.array(module.convert('RGB')), mode='RGB')
+        self.tiled = self.tile_image(imgm)
+
         self.save_img(self.left_border.img, 'left_border.png')
         self.save_img(self.right_border.img, 'right_border.png')
         self.save_img(self.top_border.img, 'top_border.png')
@@ -205,8 +214,8 @@ class Tiling:
         print("crop size - "+str(imgc.size))
         self.save_img(imgc, 'user_crop.png')
 
-        imgm = Image.fromarray(np.array(module.convert('RGB')), mode='RGB')
-        self.tile_image(imgm)
+        self.save_img(self.tiled, file_name="tiled.png")
+
         self.save_img(imgm, 'extracted_module.png')
 
         # area di ricerca
@@ -217,6 +226,7 @@ class Tiling:
 
         self.plot(h_diff_values, self.bo, file_name="h_plot.png")
         self.plot(v_diff_values, self.bv, file_name="v_plot.png")
+        # return self.tiled
 
     # def _drop_alpha(self, img):
     #     return img if img.shape[-1] == 3 else img[:, :, 1:]
@@ -232,7 +242,8 @@ class Tiling:
         for i in range(0, xrepeat * tile_w, tile_w):
             for j in range(0, yrepeat * tile_h, tile_h):
                 tiled.paste(tile, (i, j))
-        self.save_img(tiled, file_name="tiled.png")
+
+        return tiled
 
     def normalize(self, arr):
         normalized = (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
@@ -240,11 +251,11 @@ class Tiling:
 
     def save_img(self, img: Image.Image, file_name="image.png"):
 
-        file_path = os.path.join(OUT_DIR, file_name)
+        currTS2 = datetime.now().strftime("%Y%m%d%H%M%S")
+        file_path = os.path.join(OUT_DIR, currTS2+"_"+file_name)
         if not os.path.isdir(OUT_DIR):
             os.mkdir(OUT_DIR)
-        print("immagine da salvare - size - "+ str(img.size))
-
+        # print("immagine da salvare - size - "+ str(img.size))
         img.save(file_path)
 
     def plot(self, values, range_limit, direction=0, file_name="plot.png"):
@@ -288,7 +299,7 @@ class Application(tk.Frame):
 
         self.master.rowconfigure(0, weight=1)  # make the CanvasImage widget expandable
         self.master.columnconfigure(0, weight=1)
-        self.canvas = CanvasImage(self.master, "img/2fili.png")  # create widget
+        self.canvas = CanvasImage(self.master, path="img/2fili.png")  # create widget
         self.canvas.grid(row=0, column=0)  # show widget
 
         #menu bar creation
@@ -304,11 +315,14 @@ class Application(tk.Frame):
         self.menubar.add_cascade(menu=menu_edit, label='Edit')
         self.menubar.add_cascade(menu=menu_tiling, label='Tiling')
         menu_tiling.add_command(label="Start Tiling", accelerator="Ctrl+T", command=self.start_tiling)
+        menu_tiling.add_command(label="Update image with tiled texture", accelerator="Ctrl+U", command=self.update_image)
 
         parent.bind_all("<Control-o>", self.load_image)
         parent.bind_all("<Control-O>", self.load_image)
         parent.bind_all("<Control-t>", self.start_tiling)
         parent.bind_all("<Control-T>", self.start_tiling)
+        parent.bind_all("<Control-u>", self.update_image)
+        parent.bind_all("<Control-U>", self.update_image)
 
         menu_file.add_separator()
         menu_file.add_command(label="Exit", command=root.destroy)
@@ -324,10 +338,10 @@ class Application(tk.Frame):
     def load_image(self, event=None):
         file_path = filedialog.askopenfilename(title="Open Image...",
                                                filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif *.bmp *.ico")])
-
         if file_path:
+            self.tiling = None
             self.canvas.destroy()
-            self.canvas = CanvasImage(self.master, file_path)  # create widget
+            self.canvas = CanvasImage(self.master, path=file_path)  # create widget
             self.canvas.grid(row=0, column=0)
         # if file_path:
         #     self.canvas.img = Image.open(file_path)
@@ -342,7 +356,7 @@ class Application(tk.Frame):
         #     self.canvas.selection_obj.clear()
 
     def start_tiling(self, event=None):
-        self.tiling = Tiling(self.canvas.canvas.img, self.canvas.selection_obj)
+        self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj)
 
     def do_popup(self, event=None):
         """ Right click event handler to open the popup menu.
@@ -369,10 +383,15 @@ class Application(tk.Frame):
             abs_path = os.path.abspath(file.name)
             img.save(abs_path)  # saves the image to the input file name.
 
+    def update_image(self):
+        if self.tiling is not None:
+            self.canvas.destroy()
+            self.canvas = CanvasImage(self.master, img=self.tiling.tiled)  # create widget
+            self.canvas.grid(row=0, column=0)
+        else:
+            tk.messagebox.showinfo("Update image with tiled texture", "Nothing to update. Start the tiling method before updating.")
 
 if __name__ == '__main__':
-    WIDTH, HEIGHT = 900, 900
-    BACKGROUND = '#292929'
     TITLE = 'Tiling'
 
     root = tk.Tk()
