@@ -5,13 +5,11 @@ import numpy as np
 from tkinter import filedialog
 from tkinter import messagebox
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-from PIL import Image, ImageTk
+from PIL import Image
 from datetime import datetime
 
 from CanvasImage import CanvasImage
 from CanvasImage import SelectionObject
-from CanvasImage import MousePositionTracker
 
 OUT_DIR = './out/'
 WIDTH, HEIGHT = 900, 900

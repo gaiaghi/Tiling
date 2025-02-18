@@ -7,7 +7,6 @@ import warnings
 import tkinter as tk
 
 from tkinter import ttk
-from tkinter.ttk import Style
 
 from PIL import Image, ImageTk
 
@@ -116,9 +115,10 @@ class SelectionObject:
         self.canvas.bind("<Double-Button-1>", self.clear)
 
     def update(self, start, end):
+        pan = (self.canvas.canvasx(0), self.canvas.canvasy(0))
         # Current extrema of inner and outer rectangles.
-        imin_x, imin_y, imax_x, imax_y = self._get_coords(start, end)
-        if not all( (imin_x, imin_y, imax_x, imax_y)):
+        imin_x, imin_y, imax_x, imax_y = self._get_coords(start, end, pan)
+        if not all((imin_x, imin_y, imax_x, imax_y)):
             return None
         # TODO controllo coordinate con pan che non funzionano (_get_coords)
 
@@ -126,7 +126,13 @@ class SelectionObject:
         box_image = self.canvas.coords(self.container)  # get image area
         box_img_int = tuple(map(int, box_image))
 
+
+        # # Get scroll region box
+        # box_scroll = [min(box_img_int[0], box_canvas[0]), min(box_img_int[1], box_canvas[1]),
+        #               max(box_img_int[2], box_canvas[2]), max(box_img_int[3], box_canvas[3])]
+
         print("box image coord " + str(box_img_int))
+        print("box canvas " + str(pan))
         omin_x, omin_y, omax_x, omax_y = box_img_int
         # print("outer rect coord " + str((omin_x, omin_y, omax_x, omax_y)))
         # print("inner rect coord " + str((imin_x, imin_y, imax_x, imax_y)))
@@ -157,7 +163,7 @@ class SelectionObject:
 
         return tuple(map(lambda n: math.ceil(n), coord))
 
-    def _get_coords(self, start, end):
+    def _get_coords(self, start, end, pan = 0):
         """ Determine coords of a polygon defined by the start and
             end points one of the diagonals of a rectangular area.
         """
@@ -175,10 +181,10 @@ class SelectionObject:
         max_h = box_img_int[3]
         # print("min_h: " + str(min_h) + ", max_h: " + str(max_h))
         # print("min_w: " + str(min_w) + ", max_w: " + str(max_w))
-        s0 = clamp(start[0], min_w, max_w - 1)
-        e0 = clamp(end[0], min_w, max_w - 1)
-        s1 = clamp(start[1], min_h, max_h - 1)
-        e1 = clamp(end[1], min_h, max_h - 1)
+        s0 = clamp(start[0]+pan[0], min_w, max_w - 1)
+        e0 = clamp(end[0]+pan[0], min_w, max_w - 1)
+        s1 = clamp(start[1]+pan[1], min_h, max_h - 1)
+        e1 = clamp(end[1]+pan[1], min_h, max_h - 1)
 
         return ((min((s0, e0)), min((s1, e1)),
                  max((s0, e0)), max((s1, e1))))
@@ -222,7 +228,7 @@ class AutoScrollbar(ttk.Scrollbar):
 class CanvasImage:
     """ Display and zoom image """
 
-    def __init__(self, placeholder, path=None, img:Image.Image=None):
+    def __init__(self, placeholder, path=None, img: Image.Image = None):
         """ Initialize the ImageFrame """
         if path is None and img is None:
             sys.exit('Cannot open image')
@@ -396,6 +402,7 @@ class CanvasImage:
         """ Scroll canvas horizontally and redraw the image """
         self.canvas.xview(*args)  # scroll horizontally
         self.__show_image()  # redraw the image
+        print("scroll x "+str(args))
 
     # noinspection PyUnusedLocal
     def __scroll_y(self, *args, **kwargs):
@@ -414,6 +421,7 @@ class CanvasImage:
         # Get scroll region box
         box_scroll = [min(box_img_int[0], box_canvas[0]), min(box_img_int[1], box_canvas[1]),
                       max(box_img_int[2], box_canvas[2]), max(box_img_int[3], box_canvas[3])]
+
         # Horizontal part of the image is in the visible area
         if box_scroll[0] == box_canvas[0] and box_scroll[2] == box_canvas[2]:
             box_scroll[0] = box_img_int[0]
