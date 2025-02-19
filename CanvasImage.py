@@ -205,12 +205,12 @@ class SelectionObject:
         self.start = (0, 0)
         self.end = (self.width, self.height)
 
-    def crop(self, h_border=0, v_border=0) -> Image.Image:
-        # left, top, right, bottom = self._get_coords(self.start, self.end)
-        left, top = self.start
-        right, bottom = self.end
-        cropped = self.canvas.img.crop((left - h_border, top - v_border, right + h_border, bottom + v_border))
-        return cropped
+    # def crop(self, h_border=0, v_border=0) -> Image.Image:
+    #     # left, top, right, bottom = self._get_coords(self.start, self.end)
+    #     left, top = self.start
+    #     right, bottom = self.end
+    #     cropped = self.canvas.img.crop((left - h_border, top - v_border, right + h_border, bottom + v_border))
+    #     return cropped
 
 
 # TODO fine parte mia
@@ -235,7 +235,7 @@ class AutoScrollbar(ttk.Scrollbar):
 class CanvasImage:
     """ Display and zoom image """
 
-    def __init__(self, placeholder, path=None, img: Image.Image = None, coords = None):
+    def __init__(self, placeholder, path=None, img: Image.Image = None, coords=None):
         """ Initialize the ImageFrame """
         if path is None and img is None:
             sys.exit('Cannot open image')

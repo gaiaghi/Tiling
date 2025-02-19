@@ -1,6 +1,7 @@
 import os
 import os.path
 import argparse
+import sys
 import tkinter as tk
 import numpy as np
 from tkinter import filedialog
@@ -45,7 +46,8 @@ class Box:
 
 
 class Tiling:
-    def __init__(self, master, image: Image.Image, selection: SelectionObject, border=5, search_area=0.15):
+    # def __init__(self, master, image: Image.Image, selection: SelectionObject, border=5, search_area=0.15):
+    def __init__(self, master, image: Image.Image, start, end, border=5, search_area=0.15):
         # overlap border size with respect to the original image dimensions
         self.tiled = None
         self.master = master
@@ -55,11 +57,14 @@ class Tiling:
         # original image
         self.image = image
         # user selection
-        self.selection = selection
+        # self.selection = selection
+        # start and end of selected area
+        self.start = start
+        self.end = end
 
         # width and height of the user-selected area
-        self.width = self.selection.end[0] - self.selection.start[0]
-        self.height = self.selection.end[1] - self.selection.start[1]
+        self.width = self.end[0] - self.start[0]
+        self.height = self.end[1] - self.start[1]
         # vertical search area (size)
         self.bv = int(self.height * self.search_ratio)
         # orizontal search area (size)
@@ -69,37 +74,37 @@ class Tiling:
         if self.bo < 1:
             self.bo = 1
 
-        self.module = Box(image, self.selection.start[0], self.selection.start[1],
-                          self.selection.end[0], self.selection.end[1])
+        self.module = Box(image, self.start[0], self.start[1],
+                          self.end[0], self.end[1])
 
-        if (self.selection.end[0] + self.bo) > self.image.width:
-            start_h = (self.image.width - 2 * self.bo - self.border, self.selection.start[1])
-            end_h = (self.image.width - 2 * self.bo, self.selection.end[1])
+        if (self.end[0] + self.bo) > self.image.width:
+            start_h = (self.image.width - 2 * self.bo - self.border, self.start[1])
+            end_h = (self.image.width - 2 * self.bo, self.end[1])
         else:
-            start_h = (self.selection.end[0] - self.bo, self.selection.start[1])
-            end_h = (self.selection.end[0] - self.bo + self.border, self.selection.end[1])
+            start_h = (self.end[0] - self.bo, self.start[1])
+            end_h = (self.end[0] - self.bo + self.border, self.end[1])
 
-        self.left_border = Box(image, self.selection.start[0], self.selection.start[1],
-                               self.selection.start[0] + self.border, self.selection.end[1])
+        self.left_border = Box(image, self.start[0], self.start[1],
+                               self.start[0] + self.border, self.end[1])
         self.right_border = Box(image, start_h[0], start_h[1],
                                 end_h[0], end_h[1])
 
-        self.top_border = Box(image, self.selection.start[0], self.selection.start[1],
-                              self.selection.end[0], self.selection.start[1] + self.border)
+        self.top_border = Box(image, self.start[0], self.start[1],
+                              self.end[0], self.start[1] + self.border)
 
-        if (self.selection.end[1] + self.bv) > self.image.height:
-            start_v = (self.selection.start[0], self.image.height - 2 * self.bv - self.border)
-            end_v = (self.selection.end[0], self.image.height - 2 * self.bv)
+        if (self.end[1] + self.bv) > self.image.height:
+            start_v = (self.start[0], self.image.height - 2 * self.bv - self.border)
+            end_v = (self.end[0], self.image.height - 2 * self.bv)
         else:
-            start_v = (self.selection.start[0], self.selection.end[1] - self.bv)
-            end_v = (self.selection.end[0], self.selection.end[1] - self.bv + self.border)
+            start_v = (self.start[0], self.end[1] - self.bv)
+            end_v = (self.end[0], self.end[1] - self.bv + self.border)
 
         self.bottom_border = Box(image, start_v[0], start_v[1], end_v[0], end_v[1])
 
-        crop_img = selection.crop(self.bo, self.bv)
+        crop_img = self.crop(self.image, self.start, self.end, self.bo, self.bv)
         # user-selected image (with border) to matrix
         matrix = crop_img.convert('RGB')
-        self.crop = np.array(matrix)
+        self.cropped = np.array(matrix)
 
         # start module search
         self.start_search()
@@ -131,7 +136,7 @@ class Tiling:
             right_border = og_img[r_start[1]: r_end[1], r_start[0]: r_end[0], :]
 
             if step == 0:
-                print("user selection coord " + str(self.selection.start) + " " + str(self.selection.end))
+                print("user selection coord " + str(self.start) + " " + str(self.end))
                 print("orig. selected wxh = " + str(self.width) + "x" + str(self.height))
                 print("left border shape = " + str(left_border.shape))
                 print("right border shape = " + str(right_border.shape))
@@ -165,7 +170,7 @@ class Tiling:
             bottom_border = og_img[b_start[1]: b_end[1], b_start[0]: b_end[0], :]
 
             if step == 0:
-                print("user selection coord " + str(self.selection.start) + " " + str(self.selection.end))
+                print("user selection coord " + str(self.start) + " " + str(self.end))
                 print("orig. selected wxh = " + str(self.width) + "x" + str(self.height))
                 print("right border shape = " + str(top_border.shape))
                 print("bottom border shape = " + str(bottom_border.shape))
@@ -194,7 +199,7 @@ class Tiling:
         # definizione estremi del modulo
         self.module.set_end(self.right_border.start[0],
                             self.bottom_border.start[1])
-        self.module.set_start(self.selection.start[0], self.selection.start[1])
+        self.module.set_start(self.start[0], self.start[1])
 
         # left, top, right, bottom
         module = self.image.crop((self.module.start[0], self.module.start[1], self.module.end[0], self.module.end[1]))
@@ -208,8 +213,8 @@ class Tiling:
         self.save_img(self.top_border.img, 'top_border.png')
         self.save_img(self.bottom_border.img, 'bottom_border.png')
 
-        imgc = Image.fromarray(np.array(self.selection.crop().convert('RGB')), mode='RGB')
-        print("selection crop "+str(self.selection.width)+" x "+str(self.selection.height))
+        imgc = Image.fromarray(np.array(self.crop(self.image, self.start, self.end).convert('RGB')), mode='RGB')
+        # print("selection crop "+str(self.selection.width)+" x "+str(self.selection.height))
         print("crop size - "+str(imgc.size))
         self.save_img(imgc, 'user_crop.png')
 
@@ -218,8 +223,8 @@ class Tiling:
         self.save_img(imgm, 'extracted_module.png')
 
         # area di ricerca
-        search_area = og_img[self.selection.start[1]: self.selection.end[1],
-                      self.selection.end[0] - self.bo: self.selection.end[0] + self.bo, :]
+        search_area = og_img[self.start[1]: self.end[1],
+                      self.end[0] - self.bo: self.end[0] + self.bo, :]
         imgs = Image.fromarray(search_area, mode='RGB')
         self.save_img(imgs, 'search_area.png')
 
@@ -229,6 +234,13 @@ class Tiling:
 
     # def _drop_alpha(self, img):
     #     return img if img.shape[-1] == 3 else img[:, :, 1:]
+
+    def crop(self, img: Image.Image, start, end, h_border=0, v_border=0) -> Image.Image:
+        # left, top, right, bottom = self._get_coords(self.start, self.end)
+        left, top = start
+        right, bottom = end
+        cropped = img.crop((left - h_border, top - v_border, right + h_border, bottom + v_border))
+        return cropped
 
     def tile_image(self, tile: Image.Image):
         og_w = self.image.size[0]
@@ -249,9 +261,9 @@ class Tiling:
         return normalized
 
     def save_img(self, img: Image.Image, file_name="image.png"):
-
-        currTS2 = datetime.now().strftime("%Y%m%d%H%M%S")
-        file_path = os.path.join(OUT_DIR, currTS2+"_"+file_name)
+        ts = TSTAMP
+        currTS2 = datetime.now().strftime("%Y%m%d%H%M%S_") if TSTAMP else ""
+        file_path = os.path.join(OUT_DIR, currTS2+file_name)
         if not os.path.isdir(OUT_DIR):
             os.mkdir(OUT_DIR)
         # print("immagine da salvare - size - "+ str(img.size))
@@ -283,12 +295,14 @@ class Tiling:
         plt.ylabel('Q')
         plt.xlabel('pixel')
         # plt.show()
-        file_path = os.path.join(OUT_DIR, file_name)
+        ts = TSTAMP
+        currTS2 = datetime.now().strftime("%Y%m%d%H%M%S_") if TSTAMP else ""
+        file_path = os.path.join(OUT_DIR, currTS2 + file_name)
+        # file_path = os.path.join(OUT_DIR, file_name)
         fig.savefig(file_path)
 
 
 class Application(tk.Frame):
-    # TODO metti la possibilità di zoommare (+ pan) l'immagine/canvas
     # Default selection object options.
     SELECT_OPTS = dict(dash=(2, 2), stipple='gray25', fill='white',
                        outline='')
@@ -332,6 +346,7 @@ class Application(tk.Frame):
         # self.popup_menu.add_command(label="Crop selection", command=self.crop_selected)
         self.popup_menu.add_command(label="Save selection", command=self.save_selected)
         # TODO cambia menù a pop up in una tendina del menù sopra
+        #  per il salvataggio del crop e per la ricarica dell'immagine iniziale (es: dopo tiling automatico)
         # parent.bind("<Button-3>", self.do_popup)
 
     def load_image(self, event=None):
@@ -355,7 +370,7 @@ class Application(tk.Frame):
         #     self.canvas.selection_obj.clear()
 
     def start_tiling(self, event=None):
-        self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj)
+        self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start, self.canvas.selection_obj.end)
 
     def do_popup(self, event=None):
         """ Right click event handler to open the popup menu.
@@ -392,6 +407,7 @@ class Application(tk.Frame):
 
 if __name__ == '__main__':
     global TSTAMP
+    global BATCH
     global COORDS
     global IMGPATH
 
@@ -401,6 +417,8 @@ if __name__ == '__main__':
                         nargs=4, default=None, const=None, type=int)
     parser.add_argument("-t", "--Timestamp", help="Add timestamps to filename of saved images.",
                         nargs='?', default=None, const=True, type=bool)
+    parser.add_argument("-b", "--Batch", help="Command line execution.",
+                        nargs='?', default=None, const=True, type=bool)
     parser.add_argument("-i", "--Image", help="Path to the image to open.", nargs='?',
                         default="img/2fili.png", const="img/2fili.png", type=str)
     # parser.add_argument("-b", "--Batch", help="Batch mode.")
@@ -409,6 +427,8 @@ if __name__ == '__main__':
 
     TSTAMP = args.Timestamp
     print("TSTAMP: ", TSTAMP)
+    BATCH = args.Batch
+    print("BATCH: ", BATCH)
     # COORDS = tuple(int(num) for num in args.Coords.strip("()").split(','))
     COORDS = args.Coords
     print("COORDS: ", COORDS)
@@ -423,6 +443,14 @@ if __name__ == '__main__':
     root.title(TITLE)
     root.geometry('%sx%s' % (WIDTH, HEIGHT))
     root.configure(background=BACKGROUND)
-
-    app = Application(root, coords=COORDS, background=BACKGROUND, imgpath=IMGPATH)
-    app.mainloop()
+    if BATCH:
+        print("cl mode")
+        if IMGPATH is not None:
+            image = Image.open(IMGPATH)
+            coords = (0, 0, image.width, image.height) if COORDS is None else COORDS
+            tiling = Tiling(root, image, (coords[0], coords[1]), (coords[2], coords[3]))
+        else:
+            sys.exit('Cannot open image')
+    else:
+        app = Application(root, coords=COORDS, background=BACKGROUND, imgpath=IMGPATH)
+        app.mainloop()
