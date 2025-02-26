@@ -138,13 +138,13 @@ class SelectionObject:
         # box_scroll = [min(box_img_int[0], box_canvas[0]), min(box_img_int[1], box_canvas[1]),
         #               max(box_img_int[2], box_canvas[2]), max(box_img_int[3], box_canvas[3])]
 
-        print("box image coord " + str(box_img_int))
-        print("box canvas " + str(pan))
+        # print("box image coord " + str(box_img_int))
+        # print("box canvas " + str(pan))
         omin_x, omin_y, omax_x, omax_y = box_img_int
         # print("outer rect coord " + str((omin_x, omin_y, omax_x, omax_y)))
         # print("inner rect coord " + str((imin_x, imin_y, imax_x, imax_y)))
         up_coord = self._coord_mapping((imin_x, imin_y, imax_x, imax_y), box_img_int)
-        print("UP COORD ---- " + str(up_coord))
+        print("COORD ---- " + str(up_coord))
         # omin_x, omin_y, omax_x, omax_y = 0, 0, self.width, self.height
         # self.start = (imin_x, imin_y)
         # self.end = (imax_x, imax_y)
@@ -174,7 +174,7 @@ class SelectionObject:
         """ Determine coords of a polygon defined by the start and
             end points one of the diagonals of a rectangular area.
         """
-        print(start)
+        # print(start)
         if start is None:
             return (None, None, None, None)
 
@@ -409,7 +409,7 @@ class CanvasImage:
         """ Scroll canvas horizontally and redraw the image """
         self.canvas.xview(*args)  # scroll horizontally
         self.__show_image()  # redraw the image
-        print("scroll x "+str(args))
+        # print("scroll x "+str(args))
 
     # noinspection PyUnusedLocal
     def __scroll_y(self, *args, **kwargs):

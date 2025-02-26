@@ -1,5 +1,7 @@
 import os
 import os.path
+from os import listdir
+from os.path import isfile, join
 import argparse
 import sys
 import time
@@ -10,6 +12,7 @@ from tkinter import messagebox
 import matplotlib.pyplot as plt
 from PIL import Image
 from datetime import datetime
+
 
 from CanvasImage import CanvasImage
 from CanvasImage import SelectionObject
@@ -47,8 +50,12 @@ class Box:
 
 
 class Tiling:
+    #TODO riorganizza classi in file diversi
+
+    #TODO prova a parallelizzare calcolo differenze
+
     # def __init__(self, master, image: Image.Image, selection: SelectionObject, border=5, search_area=0.15):
-    def __init__(self, master, image: Image.Image, start, end, border=5, search_area=0.15):
+    def __init__(self, master, image: Image.Image, start, end, border=5, search_area=0.15, maps=None, start_tiling=True):
         # overlap border size with respect to the original image dimensions
         self.tiled = None
         self.master = master
@@ -62,6 +69,7 @@ class Tiling:
         # start and end of selected area
         self.start = start
         self.end = end
+        self.maps = maps
 
         # width and height of the user-selected area
         self.width = self.end[0] - self.start[0]
@@ -108,7 +116,8 @@ class Tiling:
         self.cropped = np.array(matrix)
 
         # start module search
-        self.start_search()
+        if start_tiling:
+            self.start_search()
 
     def start_search(self):
         # TODO togli tutte le stampe
@@ -230,8 +239,27 @@ class Tiling:
         self.plot(v_diff_values, self.bv, file_name="v_plot.png")
         # return self.tiled
 
+        if self.maps is not None:
+            self.crop_maps()
+
     # def _drop_alpha(self, img):
     #     return img if img.shape[-1] == 3 else img[:, :, 1:]
+
+    def crop_maps(self):
+        for f in self.maps:
+            img = Image.open(f)
+            if img.width == self.image.width and img.height == self.image.height:
+                img = img.crop((self.module.start[0], self.module.start[1], self.module.end[0], self.module.end[1]))
+                # self.tiled = self.tile_image(imgm)
+                # self.save_img(self.tiled, file_name="tiled.png")
+                img_name = os.path.basename(f)
+                name = os.path.splitext(img_name)[0] + "_Module" + os.path.splitext(img_name)[1]
+                self.save_img(img, file_name=name)
+            else:
+                print("Texture map " + img_name + " has not the same dimensions of the processed texture.")
+            img.close()
+
+
 
     def crop(self, img: Image.Image, start, end, h_border=0, v_border=0) -> Image.Image:
         # left, top, right, bottom = self._get_coords(self.start, self.end)
@@ -310,6 +338,8 @@ class Application(tk.Frame):
         self.canvas = CanvasImage(self.master, path=imgpath, coords=coords)  # create widget
         self.canvas.grid(row=0, column=0)  # show widget
 
+        self.folder_maps = None
+
         #menu bar creation
         self.tiling = None
         parent.option_add('*tearOff', tk.FALSE)
@@ -319,7 +349,8 @@ class Application(tk.Frame):
         menu_edit = tk.Menu(self.menubar)
         menu_tiling = tk.Menu(self.menubar)
         self.menubar.add_cascade(menu=menu_file, label='File')
-        menu_file.add_command(label="Open image...", accelerator="Ctrl+O", command=self.load_image)
+        menu_file.add_command(label="Open single image...", accelerator="Ctrl+O", command=self.load_image)
+        menu_file.add_command(label="Open image map in folder...", accelerator="Ctrl+F", command=self.load_folder)
         self.menubar.add_cascade(menu=menu_edit, label='Edit')
         self.menubar.add_cascade(menu=menu_tiling, label='Tiling')
         menu_tiling.add_command(label="Start Tiling", accelerator="Ctrl+T", command=self.start_tiling)
@@ -327,6 +358,8 @@ class Application(tk.Frame):
 
         parent.bind_all("<Control-o>", self.load_image)
         parent.bind_all("<Control-O>", self.load_image)
+        parent.bind_all("<Control-f>", self.load_folder)
+        parent.bind_all("<Control-F>", self.load_folder)
         parent.bind_all("<Control-t>", self.start_tiling)
         parent.bind_all("<Control-T>", self.start_tiling)
         parent.bind_all("<Control-u>", self.update_image)
@@ -364,8 +397,42 @@ class Application(tk.Frame):
         #     self.canvas.selection_obj.width = self.canvas.pht_img.width()
         #     self.canvas.selection_obj.clear()
 
+    def load_folder(self, event=None):
+        """ Open single image to tile in a folder containing all texture maps.
+        """
+        file_path = filedialog.askopenfilename(title="Open image map in folder...",
+                                               filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif *.bmp *.ico")])
+        file_path = os.path.abspath(file_path)
+        if file_path:
+            folder_path = os.path.dirname(file_path)
+            # if os.path.isdir(folder_path):
+            #     folder_files = [join(folder_path, f) for f in listdir(folder_path) if isfile(join(folder_path, f))]
+            if os.path.isdir(folder_path):
+                folder_files = [join(folder_path, f) for f in listdir(folder_path) if isfile(join(folder_path, f))]
+                maps = [f for f in folder_files if not os.path.basename(file_path) in f]
+            else:
+                sys.exit("Cannot open the provided directory.")
+
+            self.canvas.destroy()
+            self.canvas = CanvasImage(self.master, path=file_path)  # create widget
+            self.canvas.grid(row=0, column=0)
+            self.folder_maps = maps
+            # self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
+            #                      self.canvas.selection_obj.end, folder=folder_path, start_tiling=False)
+        else:
+            sys.exit("Cannot open image.")
+
+
+
     def start_tiling(self, event=None):
-        self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start, self.canvas.selection_obj.end)
+        # if self.tiling is None:
+        #     self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
+        #                          self.canvas.selection_obj.end)
+        # else:
+        #     self.tiling.start_search()
+        self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
+                             self.canvas.selection_obj.end, maps=self.folder_maps)
+
 
     def do_popup(self, event=None):
         """ Right click event handler to open the popup menu.
