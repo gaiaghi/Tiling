@@ -13,13 +13,13 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from datetime import datetime
 
-
 from CanvasImage import CanvasImage
 from CanvasImage import SelectionObject
 
 OUT_DIR = './out/'
 WIDTH, HEIGHT = 900, 900
 BACKGROUND = '#292929'
+
 
 #TODO dataclass ?
 class Box:
@@ -50,12 +50,14 @@ class Box:
 
 
 class Tiling:
-    #TODO riorganizza classi in file diversi
-
+    #TODO merge di github
+    #TODO (solo dopo) riorganizza classi in file diversi
+    #TODO fai prove su mappe diverse, temporizza per il report
     #TODO prova a parallelizzare calcolo differenze
 
     # def __init__(self, master, image: Image.Image, selection: SelectionObject, border=5, search_area=0.15):
-    def __init__(self, master, image: Image.Image, start, end, border=5, search_area=0.15, maps=None, start_tiling=True):
+    def __init__(self, master, image: Image.Image, start, end, border=5, search_area=0.15, maps=None,
+                 start_tiling=True):
         # overlap border size with respect to the original image dimensions
         self.tiled = None
         self.master = master
@@ -148,15 +150,13 @@ class Tiling:
 
             right_border = og_img[r_start[1]: r_end[1], r_start[0]: r_end[0], :]
 
-
             diff = self.normalize(right_border) - self.normalize(left_border)
             m_norm = sum(sum(sum(abs(diff)))) / right_border.size  # Manhattan norm
             if m_norm < min_diff_right[0]:
                 min_diff_right = (m_norm, step)
             h_diff_values.append(m_norm)
             step += 1
-            f.write(str(step)+" " + str(r_start) + " " + str(r_end) + " " + str(m_norm) + "\n")
-
+            f.write(str(step) + " " + str(r_start) + " " + str(r_end) + " " + str(m_norm) + "\n")
 
         print("Minimun (h) distanze between borders find at step " + str(min_diff_right[1]) + ": " + str(
             min_diff_right[0]))
@@ -184,14 +184,14 @@ class Tiling:
                 min_diff_bottom = (m_norm, step)
             v_diff_values.append(m_norm)
             step += 1
-            f.write(str(step)+" " + str(b_start) + " " + str(b_end) + " " + str(m_norm) + "\n")
+            f.write(str(step) + " " + str(b_start) + " " + str(b_end) + " " + str(m_norm) + "\n")
 
         end_time = time.time()
 
         print("Minimun (v) distanze between borders find at step " + str(min_diff_bottom[1]) + ": " + str(
             min_diff_bottom[0]))
 
-        f.write("\n\n tot time: " + str(end_time-start_time) + " sec\n")
+        f.write("\n\n tot time: " + str(end_time - start_time) + " sec\n")
         #++++++++++++++++++++++++++++++++++++++++++++++++++
         # chiusura file dati
         f.close()
@@ -256,10 +256,8 @@ class Tiling:
                 name = os.path.splitext(img_name)[0] + "_Module" + os.path.splitext(img_name)[1]
                 self.save_img(img, file_name=name)
             else:
-                print("Texture map " + img_name + " has not the same dimensions of the processed texture.")
+                print("Texture map " + os.path.basename(f) + " has not the same dimensions of the processed texture.")
             img.close()
-
-
 
     def crop(self, img: Image.Image, start, end, h_border=0, v_border=0) -> Image.Image:
         # left, top, right, bottom = self._get_coords(self.start, self.end)
@@ -272,8 +270,14 @@ class Tiling:
         og_w = self.image.size[0]
         og_h = self.image.size[1]
         tile_w, tile_h = tile.size
+
+        # get how many times to tile module to fit original image
         xrepeat = og_w // tile_w
         yrepeat = og_h // tile_h
+        # 2x2 tiling even if module is big
+        xrepeat = 2 if xrepeat == 1 else xrepeat
+        yrepeat = 2 if yrepeat == 1 else yrepeat
+
         tiled = Image.new('RGB', (xrepeat * tile_w, yrepeat * tile_h))
 
         for i in range(0, xrepeat * tile_w, tile_w):
@@ -289,7 +293,7 @@ class Tiling:
     def save_img(self, img: Image.Image, file_name="image.png"):
         ts = TSTAMP
         currTS2 = datetime.now().strftime("%Y%m%d%H%M%S_") if TSTAMP else ""
-        file_path = os.path.join(OUT_DIR, currTS2+file_name)
+        file_path = os.path.join(OUT_DIR, currTS2 + file_name)
         if not os.path.isdir(OUT_DIR):
             os.mkdir(OUT_DIR)
         # print("immagine da salvare - size - "+ str(img.size))
@@ -323,6 +327,7 @@ class Tiling:
         file_path = os.path.join(OUT_DIR, currTS2 + file_name)
         # file_path = os.path.join(OUT_DIR, file_name)
         fig.savefig(file_path)
+        plt.close()
 
 
 class Application(tk.Frame):
@@ -354,7 +359,8 @@ class Application(tk.Frame):
         self.menubar.add_cascade(menu=menu_edit, label='Edit')
         self.menubar.add_cascade(menu=menu_tiling, label='Tiling')
         menu_tiling.add_command(label="Start Tiling", accelerator="Ctrl+T", command=self.start_tiling)
-        menu_tiling.add_command(label="Update image with tiled texture", accelerator="Ctrl+U", command=self.update_image)
+        menu_tiling.add_command(label="Update image with tiled texture", accelerator="Ctrl+U",
+                                command=self.update_image)
 
         parent.bind_all("<Control-o>", self.load_image)
         parent.bind_all("<Control-O>", self.load_image)
@@ -422,8 +428,6 @@ class Application(tk.Frame):
         else:
             sys.exit("Cannot open image.")
 
-
-
     def start_tiling(self, event=None):
         # if self.tiling is None:
         #     self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
@@ -432,7 +436,6 @@ class Application(tk.Frame):
         #     self.tiling.start_search()
         self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
                              self.canvas.selection_obj.end, maps=self.folder_maps)
-
 
     def do_popup(self, event=None):
         """ Right click event handler to open the popup menu.
@@ -465,7 +468,9 @@ class Application(tk.Frame):
             self.canvas = CanvasImage(self.master, img=self.tiling.tiled)  # create widget
             self.canvas.grid(row=0, column=0)
         else:
-            tk.messagebox.showinfo("Update image with tiled texture", "Nothing to update. Start the tiling method before updating.")
+            tk.messagebox.showinfo("Update image with tiled texture",
+                                   "Nothing to update. Start the tiling method before updating.")
+
 
 if __name__ == '__main__':
     global TSTAMP
@@ -496,9 +501,6 @@ if __name__ == '__main__':
     print("COORDS: ", COORDS)
     IMGPATH = args.Image
     print("IMGPATH: ", IMGPATH)
-
-
-
 
     TITLE = 'Tiling'
     root = tk.Tk()

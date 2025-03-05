@@ -10,7 +10,6 @@ from tkinter import ttk
 
 from PIL import Image, ImageTk
 
-#   TODO parte mia
 SELECT_OPTS = dict(dash=(2, 2), stipple='gray25', fill='white',
                    outline='')
 BACKGROUND = '#292929'
@@ -40,7 +39,7 @@ class MousePositionTracker(tk.Frame):
 
     def update(self, event):
         self.end = (event.x, event.y)
-        self._update(event)
+        # self._update(event)
         self._command(self.start, (event.x, event.y))  # User callback.
 
     def _update(self, event):
@@ -213,7 +212,6 @@ class SelectionObject:
     #     return cropped
 
 
-# TODO fine parte mia
 
 class AutoScrollbar(ttk.Scrollbar):
     """ A scrollbar that hides itself if it's not needed. Works only for grid geometry manager """
@@ -318,7 +316,7 @@ class CanvasImage:
         self.container = self.canvas.create_rectangle((0, 0, self.imwidth, self.imheight), width=0)
         self.__show_image()  # show image on the canvas
         self.canvas.focus_set()  # set focus on the canvas
-        # TODO parte mia
+
         # path = "img/basket_normal.png"
         if self.path is not None:
             img = Image.open(path)
@@ -344,7 +342,6 @@ class CanvasImage:
         # Create mouse position tracker that uses the function.
         self.posn_tracker = MousePositionTracker(self.canvas)
         self.posn_tracker.autodraw(command=on_drag)  # Enable callbacks.
-        # TODO fine parte mia
 
     def smaller(self):
         """ Resize image proportionally and return smaller image """
