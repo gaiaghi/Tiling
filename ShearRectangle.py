@@ -60,7 +60,7 @@ class ShearRectangle:
         select_opts1 = self.select_opts1.copy()  # Avoid modifying passed argument.
         select_opts1.update(state=tk.HIDDEN)  # Hide initially.
         # Separate options for area inside rectanglar selection.
-        select_opts2 = dict(dash=(2, 2), fill='white', state=tk.HIDDEN)
+        select_opts2 = dict(dash=(2, 2), width=2, fill='white', state=tk.HIDDEN)
 
         # Initial extrema of inner and outer rectangles.
         imin_x, imin_y, imax_x, imax_y = 0, 0, 1, 1
@@ -76,17 +76,6 @@ class ShearRectangle:
                      self.canvas.create_line(imax_x, imax_y, imin_x, imax_y, **select_opts2, tags=("line",)),  #c-d
                      self.canvas.create_line(imin_x, imax_y, imin_x, imin_y, **select_opts2, tags=("line",)),  #d-a
                      )
-        # self.outside = (
-        #     self.canvas.create_polygon(imin_x, imin_y, imax_x, imin_y, imax_x, imax_y, imin_x, imax_y, **select_opts1),
-        #     self.canvas.create_polygon(imin_x, imin_y, imax_x, imin_y, imax_x, imax_y, imin_x, imax_y, **select_opts1, )
-        # )
-
-        self.outside = (
-            self.canvas.create_polygon(0, 0, 0, self.height, self.width, self.height, c[0], c[1], d[0], d[1], a[0],
-                                       a[1], **select_opts1),
-            self.canvas.create_polygon(0, 0, self.width, 0, self.width, self.height, c[0], c[1], b[0], b[1], a[0],
-                                       a[1], **select_opts1, )
-        )
 
         if coords is not None:
             self.update(self.start, self.end)
@@ -119,6 +108,7 @@ class ShearRectangle:
         p2 = np.asarray((coords[2], coords[3]))
         dist = norm(np.cross(p2 - p1, p1 - np.asarray((event.x, event.y)))) / norm(p2 - p1)
         print(element)
+        #TODO c'è un bug sulla distanza (forse collegata al pan)
         print("dist: " + str(dist))
         if dist < MIN_DIST:
             self.selected = element[0]
@@ -134,13 +124,22 @@ class ShearRectangle:
             element = self.rect[self.selected - 1]
             # calculate distance moved from last position
             dx, dy = event.x - self.moving_start[0], event.y - self.moving_start[1]
-
+            #TODO controllo qui
             current = self.canvas.coords(element)
-            if dx<0 and current[0]+dx < omin_x:
-                dx = current[0] - omin_x
 
-            if dy<0 and current[1]+dy < omin_y:
-                dy = current[0] - omin_y
+            miny = min(current[1], current[3])
+            minx = min(current[0], current[2])
+            maxy = max(current[1], current[3])
+            maxx = max(current[0], current[2])
+
+            if dx < 0 and minx+dx < omin_x:
+                dx = minx - omin_x
+            if dy < 0 and miny+dy < omin_y:
+                dy = miny - omin_y
+            if dx > 0 and maxx+dx > omax_x:
+                dx = omax_x - maxx
+            if dy > 0 and maxy+dy > omax_y:
+                dy = omax_y - maxy
 
             # move the selected item
             self.canvas.move(element, dx, dy)
@@ -156,21 +155,6 @@ class ShearRectangle:
             _, _, x2, y2 = self.canvas.coords(index2)
             self.canvas.coords(index1, x1, y1, ax, ay)
             self.canvas.coords(index2, bx, by, x2, y2)
-            points = np.array([[ax, ay], [bx, by], [x1, y1], [x2, y2]])
-            # p1 = np.min(points[points[:, 0] == np.min(points[:, 0])], 0)
-            # p2 = np.max(points[points[:, 0] == np.min(points[:, 0])], 0)
-            # p3 = np.max(points[points[:, 0] == np.max(points[:, 0])], 0)
-            # p4 = np.min(points[points[:, 0] == np.max(points[:, 0])], 0)
-            p1 = self.point_selector(np.min, np.min)(points)
-            p2 = self.point_selector(np.max, np.min)(points)
-            p3 = self.point_selector(np.max, np.max)(points)
-            p4 = self.point_selector(np.min, np.max)(points)
-
-
-            self.canvas.coords(self.outside[0], omin_x, omin_y, omin_x, omax_y, omax_x, omax_y, p3[0], p3[1], p2[0],
-                               p2[1], p1[0], p1[1])
-            self.canvas.coords(self.outside[1], omin_x, omin_y, omax_x, omin_y, omax_x, omax_y, p3[0], p3[1], p4[0],
-                               p4[1], p1[0], p1[1])
 
         self._show()
 
@@ -204,12 +188,6 @@ class ShearRectangle:
         self.canvas.coords(self.rect[1], imax_x, imin_y, imax_x, imax_y),
         self.canvas.coords(self.rect[2], imax_x, imax_y, imin_x, imax_y),
         self.canvas.coords(self.rect[3], imin_x, imax_y, imin_x, imin_y)
-        a = (imin_x, imin_y)
-        b = (imax_x, imin_y)
-        c = (imax_x, imax_y)
-        d = (imin_x, imax_y)
-        self.canvas.coords(self.outside[0], omin_x, omin_y, omin_x, omax_y, omax_x, omax_y, c[0], c[1], d[0], d[1], a[0], a[1])
-        self.canvas.coords(self.outside[1], omin_x, omin_y, omax_x, omin_y, omax_x, omax_y, c[0], c[1], b[0], b[1], a[0], a[1],)
 
 
         self._show()
@@ -253,14 +231,10 @@ class ShearRectangle:
     def _hide(self):
         for r in self.rect:
             self.canvas.itemconfigure(r, state=tk.HIDDEN)
-        for o in self.outside:
-            self.canvas.itemconfigure(o, state=tk.HIDDEN)
 
     def _show(self):
         for r in self.rect:  # Make sure all are now visible.
             self.canvas.itemconfigure(r, state=tk.NORMAL)
-        for o in self.outside:
-            self.canvas.itemconfigure(o, state=tk.NORMAL)
 
     def clear(self, event=None):
         self._hide()
