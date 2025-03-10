@@ -50,7 +50,6 @@ class Box:
 
 
 class Tiling:
-    #TODO merge di github
     #TODO (solo dopo) riorganizza classi in file diversi
     #TODO fai prove su mappe diverse, temporizza per il report
     #TODO prova a parallelizzare calcolo differenze

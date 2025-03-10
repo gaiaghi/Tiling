@@ -5,10 +5,10 @@ import math
 import sys
 import warnings
 import tkinter as tk
-
 from tkinter import ttk
-
 from PIL import Image, ImageTk
+
+from ShearRectangle import ShearRectangle
 
 SELECT_OPTS = dict(dash=(2, 2), stipple='gray25', fill='white',
                    outline='')
@@ -18,7 +18,7 @@ BACKGROUND = '#292929'
 class MousePositionTracker(tk.Frame):
     """ Tkinter Canvas mouse position widget. """
 
-    def __init__(self, canvas):
+    def __init__(self, canvas: tk.Canvas):
         super().__init__()
         self.canvas = canvas
         self.canv_width = self.canvas.cget('width')
@@ -333,7 +333,8 @@ class CanvasImage:
         self.canvas.orig = self.canvas.pht_img  # keep reference of original image
 
         # Create selection object to show current selection boundaries.
-        self.selection_obj = SelectionObject(self.canvas, self.container, self.imwidth, self.imheight, SELECT_OPTS, coords=coords)
+        # self.selection_obj = SelectionObject(self.canvas, self.container, self.imwidth, self.imheight, SELECT_OPTS, coords=coords)
+        self.selection_obj = ShearRectangle(self.canvas, self.container, self.imwidth, self.imheight, coords=coords)
 
         # Callback function to update it given two points of its diagonal.
         def on_drag(start, end, **kwarg):  # Must accept these arguments.
