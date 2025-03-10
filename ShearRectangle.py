@@ -64,26 +64,29 @@ class ShearRectangle:
 
         # Initial extrema of inner and outer rectangles.
         imin_x, imin_y, imax_x, imax_y = 0, 0, 1, 1
-        omin_x, omin_y, omax_x, omax_y = 0, 0, self.width, self.height
+        # omin_x, omin_y, omax_x, omax_y = 0, 0, self.width, self.height
 
         # self.rect = self.canvas.create_rectangle(imin_x, imin_y, imax_x, imax_y, **select_opts1)
+        a = (imin_x, imin_y)
+        b = (imax_x, imin_y)
+        c = (imax_x, imax_y)
+        d = (imin_x, imax_y)
         self.rect = (self.canvas.create_line(imin_x, imin_y, imax_x, imin_y, **select_opts2, tags=("line",)),  #a-b
                      self.canvas.create_line(imax_x, imin_y, imax_x, imax_y, **select_opts2, tags=("line",)),  #b-c
                      self.canvas.create_line(imax_x, imax_y, imin_x, imax_y, **select_opts2, tags=("line",)),  #c-d
                      self.canvas.create_line(imin_x, imax_y, imin_x, imin_y, **select_opts2, tags=("line",)),  #d-a
                      )
-        self.outside = (
-            self.canvas.create_polygon(imin_x, imin_y, imax_x, imin_y, imax_x, imax_y, imin_x, imax_y, **select_opts1),
-            self.canvas.create_polygon(imin_x, imin_y, imax_x, imin_y, imax_x, imax_y, imin_x, imax_y, **select_opts1, )
-        )
-        # ( # Area *outside* selection (inner) rectangle.
-        # self.canvas.create_rectangle(omin_x, omin_y, omax_x, imin_y, **select_opts1),
-        # self.canvas.create_rectangle(omin_x, imin_y, imin_x, imax_y, **select_opts1),
-        # self.canvas.create_rectangle(imax_x, imin_y, omax_x, imax_y, **select_opts1),
-        # self.canvas.create_rectangle(omin_x, imax_y, omax_x, omax_y, **select_opts1),
-        # Inner rectangle.
-        # self.canvas.create_rectangle(imin_x, imin_y, imax_x, imax_y, **select_opts2)
+        # self.outside = (
+        #     self.canvas.create_polygon(imin_x, imin_y, imax_x, imin_y, imax_x, imax_y, imin_x, imax_y, **select_opts1),
+        #     self.canvas.create_polygon(imin_x, imin_y, imax_x, imin_y, imax_x, imax_y, imin_x, imax_y, **select_opts1, )
         # )
+
+        self.outside = (
+            self.canvas.create_polygon(0, 0, 0, self.height, self.width, self.height, c[0], c[1], d[0], d[1], a[0],
+                                       a[1], **select_opts1),
+            self.canvas.create_polygon(0, 0, self.width, 0, self.width, self.height, c[0], c[1], b[0], b[1], a[0],
+                                       a[1], **select_opts1, )
+        )
 
         if coords is not None:
             self.update(self.start, self.end)
@@ -123,10 +126,22 @@ class ShearRectangle:
     def move_line(self, event):
         pan = (self.canvas.canvasx(0), self.canvas.canvasy(0))
         if self.selected:
+            box_image = self.canvas.coords(self.container)  # get image area
+            box_img_int = tuple(map(int, box_image))
+            omin_x, omin_y, omax_x, omax_y = box_img_int
+
             # retrieve selected element
             element = self.rect[self.selected - 1]
             # calculate distance moved from last position
             dx, dy = event.x - self.moving_start[0], event.y - self.moving_start[1]
+
+            current = self.canvas.coords(element)
+            if dx<0 and current[0]+dx < omin_x:
+                dx = current[0] - omin_x
+
+            if dy<0 and current[1]+dy < omin_y:
+                dy = current[0] - omin_y
+
             # move the selected item
             self.canvas.move(element, dx, dy)
             # update last position
@@ -141,11 +156,26 @@ class ShearRectangle:
             _, _, x2, y2 = self.canvas.coords(index2)
             self.canvas.coords(index1, x1, y1, ax, ay)
             self.canvas.coords(index2, bx, by, x2, y2)
-            #TODO change to true outside
-            self.canvas.coords(self.outside[0], x1, y1, ax, ay, bx, by, x2, y2)
-            self.canvas.coords(self.outside[1], x1, y1, ax, ay, bx, by, x2, y2)
+            points = np.array([[ax, ay], [bx, by], [x1, y1], [x2, y2]])
+            # p1 = np.min(points[points[:, 0] == np.min(points[:, 0])], 0)
+            # p2 = np.max(points[points[:, 0] == np.min(points[:, 0])], 0)
+            # p3 = np.max(points[points[:, 0] == np.max(points[:, 0])], 0)
+            # p4 = np.min(points[points[:, 0] == np.max(points[:, 0])], 0)
+            p1 = self.point_selector(np.min, np.min)(points)
+            p2 = self.point_selector(np.max, np.min)(points)
+            p3 = self.point_selector(np.max, np.max)(points)
+            p4 = self.point_selector(np.min, np.max)(points)
+
+
+            self.canvas.coords(self.outside[0], omin_x, omin_y, omin_x, omax_y, omax_x, omax_y, p3[0], p3[1], p2[0],
+                               p2[1], p1[0], p1[1])
+            self.canvas.coords(self.outside[1], omin_x, omin_y, omax_x, omin_y, omax_x, omax_y, p3[0], p3[1], p4[0],
+                               p4[1], p1[0], p1[1])
 
         self._show()
+
+    def point_selector(self, func1, func2):
+        return lambda a: func1(a[a[:, 0] == func2(a[:, 0])], 0)
 
     def quit(self, event):
         print("quit")
@@ -162,6 +192,7 @@ class ShearRectangle:
         box_image = self.canvas.coords(self.container)  # get image area
         box_img_int = tuple(map(int, box_image))
 
+        #TODO questa cosa falla in una funzione
         omin_x, omin_y, omax_x, omax_y = box_img_int
 
         up_coord = self._coord_mapping((imin_x, imin_y, imax_x, imax_y), box_img_int)
@@ -173,9 +204,14 @@ class ShearRectangle:
         self.canvas.coords(self.rect[1], imax_x, imin_y, imax_x, imax_y),
         self.canvas.coords(self.rect[2], imax_x, imax_y, imin_x, imax_y),
         self.canvas.coords(self.rect[3], imin_x, imax_y, imin_x, imin_y)
-        self.canvas.coords(self.outside[0], imin_x, imin_y, imax_x, imin_y, imax_x, imax_y, imin_x, imax_y)
+        a = (imin_x, imin_y)
+        b = (imax_x, imin_y)
+        c = (imax_x, imax_y)
+        d = (imin_x, imax_y)
+        self.canvas.coords(self.outside[0], omin_x, omin_y, omin_x, omax_y, omax_x, omax_y, c[0], c[1], d[0], d[1], a[0], a[1])
+        self.canvas.coords(self.outside[1], omin_x, omin_y, omax_x, omin_y, omax_x, omax_y, c[0], c[1], b[0], b[1], a[0], a[1],)
 
-        # self.canvas.coords(self.rect, imin_x, imin_y, imax_x, imax_y),
+
         self._show()
 
     def _coord_mapping(self, selection, box):
