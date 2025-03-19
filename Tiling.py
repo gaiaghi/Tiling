@@ -4,15 +4,17 @@ from os import listdir
 from os.path import isfile, join
 import argparse
 import sys
+import math
 import time
 import tkinter as tk
 import numpy as np
 from tkinter import filedialog
 from tkinter import messagebox
 import matplotlib.pyplot as plt
-from PIL import Image
+from matplotlib.path import Path
+from PIL import Image, ImageDraw, ImageTransform
 from datetime import datetime
-
+from skimage.draw import line
 from CanvasImage import CanvasImage
 from CanvasImage import SelectionObject
 
@@ -48,6 +50,110 @@ class Box:
         self.img = self.og.crop((self.start[0], self.start[1], self.end[0], self.end[1]))
         self.mat = np.array(self.img.convert('RGB'))
 
+class ShearBox(Box):
+    def __init__(self, img: Image.Image, left, top, right, bottom, coordinates):
+        self.og = img
+        self.start = (left, top)
+        self.end = (right, bottom)
+        # self.img = img.crop((left, top, right, bottom))
+        # self.mat = np.array(self.img.convert('RGB'))
+        self.coord = coordinates
+        self.width = max(self.coord[2][0], self.coord[3][0]) - min(self.coord[0][0], self.coord[1][0])
+        self.height = max(self.coord[1][1], self.coord[2][1]) - min(self.coord[0][1], self.coord[3][1])
+
+        rr, cc = line(int(self.coord[0][1]), int(self.coord[0][0]), int(self.coord[3][1]), int(self.coord[3][0]))
+        self.v_line_pixels = list(zip(rr, cc))
+        rr, cc = line(int(self.coord[0][1]), int(self.coord[0][0]), int(self.coord[1][1]), int(self.coord[1][0]))
+        self.h_line_pixels = list(zip(rr, cc))
+
+        #TODO sposta codice e cambia border
+        border = 5
+        search_area = 0.15
+        bo = int(self.width * search_area)
+        print("larghezza sel "+ str(self.width))
+
+        theta = self.angle3(self.coord[1], self.coord[0], (self.coord[2][0], self.coord[0][1]))
+        left_ends = [(int(self.coord[0][0] + border*math.cos(theta)), int(self.coord[0][1] + border*math.sin(theta))),
+                      (int(self.coord[3][0] + border*math.cos(theta)), int(self.coord[3][1] + border*math.sin(theta)))]
+        print("self.coord "+str(self.coord))
+        print("theta "+str(theta))
+        print("left_ends "+str(left_ends))
+
+        left_path = Path((self.coord[0], left_ends[0], left_ends[1], self.coord[3]))
+        xminL, yminL, xmaxL, ymaxL = np.asarray(left_path.get_extents(), dtype=int).ravel()
+        # print(coordinates)
+        # print(xmin, ymin, xmax, ymax)
+        #TODO parti da -search_area
+        right_starts = [(int((self.coord[1][0]-bo) + border*math.cos(theta)), int(self.coord[1][1] + border*math.sin(theta))),
+                      (int((self.coord[2][0]-bo) + border*math.cos(theta)), int(self.coord[2][1] + border*math.sin(theta)))]
+        right_ends = [(int((self.coord[1][0]-bo+border) + border*math.cos(theta)), right_starts[0][1]),
+                      (int((self.coord[2][0]-bo+border) + border*math.cos(theta)), right_starts[1][1])]
+        right_path = Path((right_starts[0], right_ends[0], right_ends[1], right_starts[1]))
+        xminR, yminR, xmaxR, ymaxR = np.asarray(right_path.get_extents(), dtype=int).ravel()
+
+        # create a mesh grid for the whole image
+        x, y = np.mgrid[:self.og.height, :self.og.width]
+        # mesh grid to a list of points
+        points = np.vstack((x.ravel(), y.ravel())).T
+        # select points included in the path
+        left_mask = left_path.contains_points(points)
+        left_points = points[np.where(left_mask)]
+        print("Left\n" + str(len(left_points)))
+        print(left_points.shape)
+        # points_matrix = path_points.reshape((ymax-ymin, xmax-xmin+1, 2))
+        # print(points_matrix.shape)
+        # print(points_matrix)
+        right_mask = right_path.contains_points(points)
+        right_points = points[np.where(right_mask)]
+        print("Right\n" + str(len(right_points)))
+        print(right_points.shape)
+
+        fig, ax = plt.subplots()
+
+        # masked image
+        img_mask = left_mask.reshape(x.shape).T
+        ax.imshow(img * img_mask[..., None])
+        # a random sample from path_points
+        idx = np.random.choice(np.arange(left_points.shape[0]), 200)
+        ax.scatter(left_points[idx, 0], left_points[idx, 1], alpha=0.3, color='cyan')
+
+        idx2 = np.random.choice(np.arange(right_points.shape[0]), 200)
+        ax.scatter(right_points[idx2, 0], right_points[idx2, 1], alpha=0.3, color='yellow')
+
+        fig.savefig("prova_points.jpg")
+
+        # ---------ritagliare la selezione utente
+        # image = self.og
+        # background = Image.new("RGBA", image.size, (0, 0, 0, 0))
+        # mask = Image.new("RGBA", image.size, 0)
+        # draw = ImageDraw.Draw(mask)
+        # draw.polygon((self.coord[0], self.coord[1], self.coord[2], self.coord[3]), fill='green', outline=None)
+        # # prova = ImageTransform.QuadTransform((self.coord[0][0], self.coord[0][1], self.coord[1][0], self.coord[1][1],
+        # #                                      self.coord[2][0], self.coord[2][1], self.coord[3][0], self.coord[3][1]))
+        # new_img = Image.composite(image, background, mask)
+        # new_img.show()
+        #
+        # selection = np.array(new_img)
+        # extract = []
+        # for line in selection:
+        #     if not all(p[3] == 0 for p in line):
+        #         extract.append(line)
+        #
+        # extract = np.array(extract)
+        # idx = np.argwhere(np.all(extract[..., :] == 0, axis=0))
+        # a2 = np.delete(extract, idx, axis=1)
+        #
+        # cropped = Image.fromarray(np.array(a2)[:,:,:3], mode='RGB')
+        #
+        # cropped.show()
+        # print(a2.shape)
+
+    @staticmethod
+    def angle3(a, b, c):
+        ang = math.degrees(math.atan2(c[1] - b[1], c[0] - b[0]) - math.atan2(a[1] - b[1], a[0] - b[0]))
+        return ang + 360 if ang < 0 else ang
+
+
 
 class Tiling:
     #TODO (solo dopo) riorganizza classi in file diversi
@@ -55,7 +161,7 @@ class Tiling:
     #TODO prova a parallelizzare calcolo differenze
 
     # def __init__(self, master, image: Image.Image, selection: SelectionObject, border=5, search_area=0.15):
-    def __init__(self, master, image: Image.Image, start, end, border=5, search_area=0.15, maps=None,
+    def __init__(self, master, image: Image.Image, start, end, shear=None, border=5, search_area=0.15, maps=None,
                  start_tiling=True):
         # overlap border size with respect to the original image dimensions
         self.tiled = None
@@ -65,13 +171,11 @@ class Tiling:
         self.border = border  #TODO prova con 5, 10 e 15, 25
         # original image
         self.image = image
-        # user selection
-        # self.selection = selection
         # start and end of selected area
         self.start = start
         self.end = end
+        self.shear = shear # coordinates of sheared rect
         self.maps = maps
-
         # width and height of the user-selected area
         self.width = self.end[0] - self.start[0]
         self.height = self.end[1] - self.start[1]
@@ -84,9 +188,10 @@ class Tiling:
         if self.bo < 1:
             self.bo = 1
 
-        self.module = Box(image, self.start[0], self.start[1],
-                          self.end[0], self.end[1])
+        # self.module = Box(self.image, self.start[0], self.start[1],
+        #                   self.end[0], self.end[1])
 
+        # check if image overflow
         if (self.end[0] + self.bo) > self.image.width:
             start_h = (self.image.width - 2 * self.bo - self.border, self.start[1])
             end_h = (self.image.width - 2 * self.bo, self.end[1])
@@ -94,13 +199,13 @@ class Tiling:
             start_h = (self.end[0] - self.bo, self.start[1])
             end_h = (self.end[0] - self.bo + self.border, self.end[1])
 
-        self.left_border = Box(image, self.start[0], self.start[1],
-                               self.start[0] + self.border, self.end[1])
-        self.right_border = Box(image, start_h[0], start_h[1],
-                                end_h[0], end_h[1])
-
-        self.top_border = Box(image, self.start[0], self.start[1],
-                              self.end[0], self.start[1] + self.border)
+        # self.left_border = Box(self.image, self.start[0], self.start[1],
+        #                        self.start[0] + self.border, self.end[1])
+        # self.right_border = Box(self.image, start_h[0], start_h[1],
+        #                         end_h[0], end_h[1])
+        #
+        # self.top_border = Box(image, self.start[0], self.start[1],
+        #                       self.end[0], self.start[1] + self.border)
 
         if (self.end[1] + self.bv) > self.image.height:
             start_v = (self.start[0], self.image.height - 2 * self.bv - self.border)
@@ -109,16 +214,44 @@ class Tiling:
             start_v = (self.start[0], self.end[1] - self.bv)
             end_v = (self.end[0], self.end[1] - self.bv + self.border)
 
-        self.bottom_border = Box(image, start_v[0], start_v[1], end_v[0], end_v[1])
+        if self.shear is None:
+            self._rect_setup(start_h, end_h, start_v, end_v)
+        else:
+            self._shear_setup()
 
-        crop_img = self.crop(self.image, self.start, self.end, self.bo, self.bv)
-        # user-selected image (with border) to matrix
-        matrix = crop_img.convert('RGB')
-        self.cropped = np.array(matrix)
+        # self.bottom_border = Box(image, start_v[0], start_v[1], end_v[0], end_v[1])
+
+        # crop_img = self.crop(self.image, self.start, self.end, self.bo, self.bv)
+        # # user-selected image (with border) to matrix
+        # matrix = crop_img.convert('RGB')
+        # self.cropped = np.array(matrix)
 
         # start module search
-        if start_tiling:
-            self.start_search()
+        # if start_tiling:
+            # self.start_search()
+
+    def _rect_setup(self, start_h, end_h, start_v, end_v):
+        self.module = Box(self.image, self.start[0], self.start[1],
+                          self.end[0], self.end[1])
+
+        self.left_border = Box(self.image, self.start[0], self.start[1],
+                               self.start[0] + self.border, self.end[1])
+
+        self.right_border = Box(self.image, start_h[0], start_h[1],
+                                end_h[0], end_h[1])
+
+        self.top_border = Box(image, self.start[0], self.start[1],
+                              self.end[0], self.start[1] + self.border)
+
+        self.bottom_border = Box(image, start_v[0], start_v[1], end_v[0], end_v[1])
+
+        # crop_img = self.crop(self.image, self.start, self.end, self.bo, self.bv)
+        # # user-selected image (with border) to matrix
+        # matrix = crop_img.convert('RGB')
+        # self.cropped = np.array(matrix)
+
+    def _shear_setup(self):
+        sheared = ShearBox(self.image, self.start[0], self.start[1], self.end[0], self.end[1], self.shear)
 
     def start_search(self):
         # TODO togli tutte le stampe
@@ -433,8 +566,12 @@ class Application(tk.Frame):
         #                          self.canvas.selection_obj.end)
         # else:
         #     self.tiling.start_search()
+        #TODO qui la separazione sui casi rect o shear rect
+
+        # self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
+        #                      self.canvas.selection_obj.end, maps=self.folder_maps)
         self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
-                             self.canvas.selection_obj.end, maps=self.folder_maps)
+                             self.canvas.selection_obj.end, shear=self.canvas.selection_obj.coordinates, maps=self.folder_maps)
 
     def do_popup(self, event=None):
         """ Right click event handler to open the popup menu.

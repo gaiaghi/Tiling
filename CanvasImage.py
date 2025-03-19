@@ -72,7 +72,7 @@ class MousePositionTracker(tk.Frame):
         self.reset()
 
 
-class SelectionObject:
+class SelectionObject: #TODO cambia nome (rectangle tipo)
     """ Widget to display a rectangular area on given canvas defined by two points
         representing its diagonal.
     """
@@ -333,6 +333,8 @@ class CanvasImage:
         self.canvas.orig = self.canvas.pht_img  # keep reference of original image
 
         # Create selection object to show current selection boundaries.
+        #TODO creazione classe in base al tipo di selezione che si vuole fare
+        
         # self.selection_obj = SelectionObject(self.canvas, self.container, self.imwidth, self.imheight, SELECT_OPTS, coords=coords)
         self.selection_obj = ShearRectangle(self.canvas, self.container, self.imwidth, self.imheight, coords=coords)
 
