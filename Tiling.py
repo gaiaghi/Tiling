@@ -16,7 +16,7 @@ from PIL import Image, ImageDraw, ImageTransform
 from datetime import datetime
 from skimage.draw import line
 from CanvasImage import CanvasImage
-from CanvasImage import SelectionObject
+from CanvasImage import RectangleObject
 
 OUT_DIR = './out/'
 WIDTH, HEIGHT = 900, 900
@@ -50,6 +50,7 @@ class Box:
         self.img = self.og.crop((self.start[0], self.start[1], self.end[0], self.end[1]))
         self.mat = np.array(self.img.convert('RGB'))
 
+
 class ShearBox(Box):
     def __init__(self, img: Image.Image, left, top, right, bottom, coordinates):
         self.og = img
@@ -65,31 +66,33 @@ class ShearBox(Box):
         self.v_line_pixels = list(zip(rr, cc))
         rr, cc = line(int(self.coord[0][1]), int(self.coord[0][0]), int(self.coord[1][1]), int(self.coord[1][0]))
         self.h_line_pixels = list(zip(rr, cc))
+        print("h line "+ str(self.h_line_pixels))
 
         #TODO sposta codice e cambia border
         border = 5
         search_area = 0.15
         bo = int(self.width * search_area)
-        print("larghezza sel "+ str(self.width))
+        print("larghezza sel " + str(self.width))
 
         theta = self.angle3(self.coord[1], self.coord[0], (self.coord[2][0], self.coord[0][1]))
-        left_ends = [(int(self.coord[0][0] + border*math.cos(theta)), int(self.coord[0][1] + border*math.sin(theta))),
-                      (int(self.coord[3][0] + border*math.cos(theta)), int(self.coord[3][1] + border*math.sin(theta)))]
-        print("self.coord "+str(self.coord))
-        print("theta "+str(theta))
-        print("left_ends "+str(left_ends))
+        left_ends = [
+            (int(self.coord[0][0] + border * math.cos(theta)), int(self.coord[0][1] + border * math.sin(theta))),
+            (int(self.coord[3][0] + border * math.cos(theta)), int(self.coord[3][1] + border * math.sin(theta)))]
+        print("self.coord " + str(self.coord))
+        print("theta " + str(theta))
+        print("left_ends " + str(left_ends))
 
         left_path = Path((self.coord[0], left_ends[0], left_ends[1], self.coord[3]))
-        xminL, yminL, xmaxL, ymaxL = np.asarray(left_path.get_extents(), dtype=int).ravel()
-        # print(coordinates)
-        # print(xmin, ymin, xmax, ymax)
+        # xminL, yminL, xmaxL, ymaxL = np.asarray(left_path.get_extents(), dtype=int).ravel()
+
         #TODO parti da -search_area
-        right_starts = [(int((self.coord[1][0]-bo) + border*math.cos(theta)), int(self.coord[1][1] + border*math.sin(theta))),
-                      (int((self.coord[2][0]-bo) + border*math.cos(theta)), int(self.coord[2][1] + border*math.sin(theta)))]
-        right_ends = [(int((self.coord[1][0]-bo+border) + border*math.cos(theta)), right_starts[0][1]),
-                      (int((self.coord[2][0]-bo+border) + border*math.cos(theta)), right_starts[1][1])]
+        right_starts = [
+            (int((self.coord[1][0] - bo) + border * math.cos(theta)), int(self.coord[1][1] + border * math.sin(theta))),
+            (int((self.coord[2][0] - bo) + border * math.cos(theta)), int(self.coord[2][1] + border * math.sin(theta)))]
+        right_ends = [(int((self.coord[1][0] - bo + border) + border * math.cos(theta)), right_starts[0][1]),
+                      (int((self.coord[2][0] - bo + border) + border * math.cos(theta)), right_starts[1][1])]
         right_path = Path((right_starts[0], right_ends[0], right_ends[1], right_starts[1]))
-        xminR, yminR, xmaxR, ymaxR = np.asarray(right_path.get_extents(), dtype=int).ravel()
+        # xminR, yminR, xmaxR, ymaxR = np.asarray(right_path.get_extents(), dtype=int).ravel()
 
         # create a mesh grid for the whole image
         x, y = np.mgrid[:self.og.height, :self.og.width]
@@ -100,9 +103,7 @@ class ShearBox(Box):
         left_points = points[np.where(left_mask)]
         print("Left\n" + str(len(left_points)))
         print(left_points.shape)
-        # points_matrix = path_points.reshape((ymax-ymin, xmax-xmin+1, 2))
-        # print(points_matrix.shape)
-        # print(points_matrix)
+
         right_mask = right_path.contains_points(points)
         right_points = points[np.where(right_mask)]
         print("Right\n" + str(len(right_points)))
@@ -110,13 +111,11 @@ class ShearBox(Box):
 
         fig, ax = plt.subplots()
 
-        # masked image
+        # masked image plot
         img_mask = left_mask.reshape(x.shape).T
         ax.imshow(img * img_mask[..., None])
-        # a random sample from path_points
         idx = np.random.choice(np.arange(left_points.shape[0]), 200)
         ax.scatter(left_points[idx, 0], left_points[idx, 1], alpha=0.3, color='cyan')
-
         idx2 = np.random.choice(np.arange(right_points.shape[0]), 200)
         ax.scatter(right_points[idx2, 0], right_points[idx2, 1], alpha=0.3, color='yellow')
 
@@ -154,7 +153,6 @@ class ShearBox(Box):
         return ang + 360 if ang < 0 else ang
 
 
-
 class Tiling:
     #TODO (solo dopo) riorganizza classi in file diversi
     #TODO fai prove su mappe diverse, temporizza per il report
@@ -174,7 +172,7 @@ class Tiling:
         # start and end of selected area
         self.start = start
         self.end = end
-        self.shear = shear # coordinates of sheared rect
+        self.shear = shear  # coordinates of sheared rect
         self.maps = maps
         # width and height of the user-selected area
         self.width = self.end[0] - self.start[0]
@@ -228,7 +226,7 @@ class Tiling:
 
         # start module search
         # if start_tiling:
-            # self.start_search()
+        # self.start_search()
 
     def _rect_setup(self, start_h, end_h, start_v, end_v):
         self.module = Box(self.image, self.start[0], self.start[1],
@@ -309,7 +307,7 @@ class Tiling:
             b_end = (self.bottom_border.end[0], self.bottom_border.end[1] + step)
 
             bottom_border = og_img[b_start[1]: b_end[1], b_start[0]: b_end[0], :]
-
+            # TODO  ricontrolla normalize
             diff = self.normalize(bottom_border) - self.normalize(top_border)
             m_norm = sum(sum(sum(abs(diff)))) / bottom_border.size  # Manhattan norm
             if m_norm < min_diff_bottom[0]:
@@ -571,7 +569,8 @@ class Application(tk.Frame):
         # self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
         #                      self.canvas.selection_obj.end, maps=self.folder_maps)
         self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
-                             self.canvas.selection_obj.end, shear=self.canvas.selection_obj.coordinates, maps=self.folder_maps)
+                             self.canvas.selection_obj.end, shear=self.canvas.selection_obj.coordinates,
+                             maps=self.folder_maps)
 
     def do_popup(self, event=None):
         """ Right click event handler to open the popup menu.

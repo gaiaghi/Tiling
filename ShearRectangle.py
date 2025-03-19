@@ -2,6 +2,7 @@ import tkinter as tk
 import math
 import numpy as np
 from numpy.linalg import norm
+from Selection import SelectionObject
 
 # SELECT_OPTS = dict(dash=(2, 2),  fill='white')
 SELECT_OPTS = dict(dash=(2, 2), stipple='gray25', fill='white',
@@ -9,31 +10,11 @@ SELECT_OPTS = dict(dash=(2, 2), stipple='gray25', fill='white',
 MIN_DIST = 9
 
 
-class Coordinates:
-    def __init__(self, a, b, c, d):
-        self.A = a
-        self.B = b
-        self.C = c
-        self.D = d
-
-    def set_A(self, a):
-        self.A = a
-
-    def set_B(self, b):
-        self.B = b
-
-    def set_C(self, c):
-        self.C = c
-
-    def set_D(self, d):
-        self.D = d
-
-
 def point_selector(func1, func2):
     return lambda a: func1(a[a[:, 0] == func2(a[:, 0])], 0)
 
 
-class ShearRectangle:
+class ShearRectangle(SelectionObject):
     """ Widget to display a sheared rectangular area on given canvas defined by two points
         representing its diagonal + user edit.
     """
@@ -46,13 +27,13 @@ class ShearRectangle:
         self.select_opts1 = SELECT_OPTS
         # self.width = int(self.canvas.cget('width'))
         # self.height = int(self.canvas.cget('height'))
-        #TODO rename (img width, img height)
         self.width = width
         self.height = height
         self.container = container
         self.selected = None
         self.direction = 0
         self.coordinates = None
+        self.rects = None
         # inizio e fine dell'area selezionabile
         # all'inizio coincide con l'area dell'immagine a grandezza naturale
         if coords is None:
@@ -151,8 +132,8 @@ class ShearRectangle:
             omin_x, omin_y, omax_x, omax_y = box_img_int
 
             # retrieve selected element
-            element = self.rect[self.selected - 1]
-            opp = self.rect[(self.selected+1) % 4]
+            element = self.rects[self.selected - 1]
+            opp = self.rects[(self.selected + 1) % 4]
             # calculate distance moved from last position
             dx, dy = event.x - self.moving_start[0], event.y - self.moving_start[1]
             current = self.canvas.coords(element)
@@ -285,10 +266,10 @@ class ShearRectangle:
         self.start = (up_coord[0], up_coord[1])
         self.end = (up_coord[2], up_coord[3])
         # Update coords of all rectangles based on these extrema.
-        self.canvas.coords(self.rect[0], imin_x, imin_y, imax_x, imin_y),
-        self.canvas.coords(self.rect[1], imax_x, imin_y, imax_x, imax_y),
-        self.canvas.coords(self.rect[2], imax_x, imax_y, imin_x, imax_y),
-        self.canvas.coords(self.rect[3], imin_x, imax_y, imin_x, imin_y)
+        self.canvas.coords(self.rects[0], imin_x, imin_y, imax_x, imin_y),
+        self.canvas.coords(self.rects[1], imax_x, imin_y, imax_x, imax_y),
+        self.canvas.coords(self.rects[2], imax_x, imax_y, imin_x, imax_y),
+        self.canvas.coords(self.rects[3], imin_x, imax_y, imin_x, imin_y)
 
         self._update_coordinates()
 
@@ -303,95 +284,24 @@ class ShearRectangle:
 
         self._show()
 
-    def _coord_mapping(self, selection, box):
-        og_h = self.height
-        og_w = self.width
-        h_ratio = og_h / (box[3] - box[1])
-        w_ratio = og_w / (box[2] - box[0])
-        coord = ((selection[0] - box[0]) * w_ratio, (selection[1] - box[1]) * h_ratio,
-                 (selection[2] - box[0]) * w_ratio, (selection[3] - box[1]) * h_ratio)
-
-        return tuple(map(lambda n: math.ceil(n), coord))
-
-    #TODO unifica
-    def _coord_mapping2(self, x, y, box):
-        og_h = self.height
-        og_w = self.width
-        h_ratio = og_h / (box[3] - box[1])
-        w_ratio = og_w / (box[2] - box[0])
-        coord = ((x - box[0]) * w_ratio, (y - box[1]) * h_ratio)
-
-        return tuple(map(lambda n: math.ceil(n), coord))
-
-
-    def _get_coords(self, start, end, pan=(0,0)):
-        """ Determine coords of a polygon defined by the start and
-            end points one of the diagonals of a rectangular area.
-        """
-        # print(start)
-        if start is None:
-            return (None, None, None, None)
-
-        clamp = lambda n, minn, maxn: max(min(maxn, n), minn)
-
-        box_image = self.canvas.coords(self.container)  # get image area
-        box_img_int = tuple(map(int, box_image))
-        min_w = box_img_int[0]
-        min_h = box_img_int[1]
-        max_w = box_img_int[2]
-        max_h = box_img_int[3]
-        # print("min_h: " + str(min_h) + ", max_h: " + str(max_h))
-        # print("min_w: " + str(min_w) + ", max_w: " + str(max_w))
-        s0 = clamp(start[0] + pan[0], min_w, max_w - 1)
-        e0 = clamp(end[0] + pan[0], min_w, max_w - 1)
-        s1 = clamp(start[1] + pan[1], min_h, max_h - 1)
-        e1 = clamp(end[1] + pan[1], min_h, max_h - 1)
-
-        return ((min((s0, e0)), min((s1, e1)),
-                 max((s0, e0)), max((s1, e1))))
-
-    def _hide(self):
-        for r in self.rect:
-            self.canvas.itemconfigure(r, state=tk.HIDDEN)
-        # for o in self.outside:
-        #     self.canvas.itemconfigure(o, state=tk.HIDDEN)
-
-    def _show(self):
-        for r in self.rect:  # Make sure all are now visible.
-            self.canvas.itemconfigure(r, state=tk.NORMAL)
-        # for o in self.outside:
-        #     self.canvas.itemconfigure(o, state=tk.NORMAL)
-
-    def _clear(self, event=None):
-        self._hide()
-        self.start = (0, 0)
-        self.end = (self.width, self.height)
-        self.draft = None
-
-    # def crop(self, h_border=0, v_border=0) -> Image.Image:
-    #     # left, top, right, bottom = self._get_coords(self.start, self.end)
-    #     left, top = self.start
-    #     right, bottom = self.end
-    #     cropped = self.canvas.img.crop((left - h_border, top - v_border, right + h_border, bottom + v_border))
-    #     return cropped
 
     def rect_setup(self):
         select_opts2 = dict(dash=(2, 2), width=2, fill='white', state=tk.HIDDEN)
         imin_x, imin_y, imax_x, imax_y = 0, 0, 1, 1
-        self.rect = (self.canvas.create_line(imin_x, imin_y, imax_x, imin_y, **select_opts2, tags=("line",)),  #a-b
-                     self.canvas.create_line(imax_x, imin_y, imax_x, imax_y, **select_opts2, tags=("line",)),  #b-c
-                     self.canvas.create_line(imax_x, imax_y, imin_x, imax_y, **select_opts2, tags=("line",)),  #c-d
-                     self.canvas.create_line(imin_x, imax_y, imin_x, imin_y, **select_opts2, tags=("line",)),  #d-a
-                     )
+        self.rects = (self.canvas.create_line(imin_x, imin_y, imax_x, imin_y, **select_opts2, tags=("line",)),  #a-b
+                      self.canvas.create_line(imax_x, imin_y, imax_x, imax_y, **select_opts2, tags=("line",)),  #b-c
+                      self.canvas.create_line(imax_x, imax_y, imin_x, imax_y, **select_opts2, tags=("line",)),  #c-d
+                      self.canvas.create_line(imin_x, imax_y, imin_x, imin_y, **select_opts2, tags=("line",)),  #d-a
+                      )
 
     def _update_coordinates(self):
         box_image = self.canvas.coords(self.container)  # get image area
         box_img_int = tuple(map(int, box_image))
 
-        self.coordinates = (self._coord_mapping2(self.canvas.coords(self.rect[0])[0], self.canvas.coords(self.rect[0])[1],box_img_int),
-                            self._coord_mapping2(self.canvas.coords(self.rect[1])[0], self.canvas.coords(self.rect[1])[1],box_img_int),
-                            self._coord_mapping2(self.canvas.coords(self.rect[2])[0], self.canvas.coords(self.rect[2])[1],box_img_int),
-                            self._coord_mapping2(self.canvas.coords(self.rect[3])[0], self.canvas.coords(self.rect[3])[1], box_img_int))
+        self.coordinates = (self._coord_mapping(self.canvas.coords(self.rects[0])[0], self.canvas.coords(self.rects[0])[1], box_img_int),
+                            self._coord_mapping(self.canvas.coords(self.rects[1])[0], self.canvas.coords(self.rects[1])[1], box_img_int),
+                            self._coord_mapping(self.canvas.coords(self.rects[2])[0], self.canvas.coords(self.rects[2])[1], box_img_int),
+                            self._coord_mapping(self.canvas.coords(self.rects[3])[0], self.canvas.coords(self.rects[3])[1], box_img_int))
         # self.coordinates = ((self.canvas.coords(self.rect[0])[0], self.canvas.coords(self.rect[0])[1]),
         #                     (self.canvas.coords(self.rect[1])[0], self.canvas.coords(self.rect[1])[1]),
         #                     (self.canvas.coords(self.rect[2])[0], self.canvas.coords(self.rect[2])[1]),
