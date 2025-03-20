@@ -2,7 +2,7 @@ import math
 import tkinter as tk
 from abc import abstractmethod
 
-
+#TODO sposta 2d point, coords in un file utils.py
 class TwoDPoint(object):
     def __init__(self, x, y):
         self.x = x
@@ -143,4 +143,8 @@ class SelectionObject:
 
     @abstractmethod
     def _update_rects(self, imin_x, imin_y, imax_x, imax_y, omin_x, omin_y, omax_x, omax_y):
+        pass
+
+    @abstractmethod
+    def matrix(self, p1, p2, p3, p4):
         pass

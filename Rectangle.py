@@ -1,14 +1,17 @@
+import itertools
 import tkinter as tk
+
+import numpy as np
+
 from Selection import SelectionObject
 
 
-class RectangleObject(SelectionObject): #TODO cambia nome (rectangle tipo)
+class RectangleObject(SelectionObject):  #TODO cambia nome (rectangle tipo)
     """ Widget to display a rectangular area on given canvas defined by two points
         representing its diagonal.
     """
 
     def __init__(self, canvas, container, width, height, select_opts, coords=None):
-
         super(RectangleObject, self).__init__(canvas, container, width, height, select_opts, coords)
 
         # Options for areas outside rectanglar selection.
@@ -41,3 +44,11 @@ class RectangleObject(SelectionObject): #TODO cambia nome (rectangle tipo)
         self.canvas.coords(self.rects[2], imax_x, imin_y, omax_x, imax_y),
         self.canvas.coords(self.rects[3], omin_x, imax_y, omax_x, omax_y),
         self.canvas.coords(self.rects[4], imin_x, imin_y, imax_x, imax_y),
+
+    def matrix(self, p1, p2, p3, p4):
+        w = p3[0] - p1[0] + 1
+        h = p3[1] - p1[1] + 1
+        x_coords = [x for x in range(p1[0], p3[0] + 1)]
+        y_coords = [y for y in range(p1[1], p3[1] + 1)]
+        output = np.asarray(list(itertools.product(x_coords, y_coords)))
+        return output.reshape((w, h, 2))

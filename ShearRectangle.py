@@ -4,6 +4,7 @@ import numpy as np
 from numpy.linalg import norm
 from Selection import SelectionObject
 from Selection import TwoDPoint, Coordinates
+from skimage.draw import line
 
 # SELECT_OPTS = dict(dash=(2, 2),  fill='white')
 SELECT_OPTS = dict(dash=(2, 2), stipple='gray25', fill='white',
@@ -195,3 +196,9 @@ class ShearRectangle(SelectionObject):
 
         self.start = TwoDPoint(self.coordinates[0][0], self.coordinates[0][1])
         self.end = TwoDPoint(self.coordinates[2][0], self.coordinates[2][1])
+
+    def matrix(self, p1, p2, p3, p4):
+        rr, cc = line(int(p1[0]), int(p1[1]), int(p4[0]), int(p4[1]))
+        v_line_pixels = list(zip(rr, cc))
+        rr, cc = line(int(p1[0]), int(p1[1]), int(p2[0]), int(p2[1]))
+        h_line_pixels = list(zip(rr, cc))

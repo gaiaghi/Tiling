@@ -16,6 +16,7 @@ from PIL import Image, ImageDraw, ImageTransform
 from datetime import datetime
 from skimage.draw import line
 from CanvasImage import CanvasImage
+from Selection import Coordinates, TwoDPoint
 from Rectangle import RectangleObject
 
 OUT_DIR = './out/'
@@ -66,21 +67,21 @@ class ShearBox(Box):
         self.v_line_pixels = list(zip(rr, cc))
         rr, cc = line(int(self.coord[0][1]), int(self.coord[0][0]), int(self.coord[1][1]), int(self.coord[1][0]))
         self.h_line_pixels = list(zip(rr, cc))
-        print("h line "+ str(self.h_line_pixels))
+        # print("h line " + str(self.h_line_pixels))
 
         #TODO sposta codice e cambia border
         border = 5
         search_area = 0.15
         bo = int(self.width * search_area)
-        print("larghezza sel " + str(self.width))
+        # print("larghezza sel " + str(self.width))
 
         theta = self.angle3(self.coord[1], self.coord[0], (self.coord[2][0], self.coord[0][1]))
         left_ends = [
             (int(self.coord[0][0] + border * math.cos(theta)), int(self.coord[0][1] + border * math.sin(theta))),
             (int(self.coord[3][0] + border * math.cos(theta)), int(self.coord[3][1] + border * math.sin(theta)))]
-        print("self.coord " + str(self.coord))
-        print("theta " + str(theta))
-        print("left_ends " + str(left_ends))
+        # print("self.coord " + str(self.coord))
+        # print("theta " + str(theta))
+        # print("left_ends " + str(left_ends))
 
         left_path = Path((self.coord[0], left_ends[0], left_ends[1], self.coord[3]))
         # xminL, yminL, xmaxL, ymaxL = np.asarray(left_path.get_extents(), dtype=int).ravel()
@@ -101,25 +102,25 @@ class ShearBox(Box):
         # select points included in the path
         left_mask = left_path.contains_points(points)
         left_points = points[np.where(left_mask)]
-        print("Left\n" + str(len(left_points)))
-        print(left_points.shape)
+        # print("Left\n" + str(len(left_points)))
+        # print(left_points.shape)
 
         right_mask = right_path.contains_points(points)
         right_points = points[np.where(right_mask)]
-        print("Right\n" + str(len(right_points)))
-        print(right_points.shape)
+        # print("Right\n" + str(len(right_points)))
+        # print(right_points.shape)
 
         fig, ax = plt.subplots()
 
         # masked image plot
-        img_mask = left_mask.reshape(x.shape).T
-        ax.imshow(img * img_mask[..., None])
-        idx = np.random.choice(np.arange(left_points.shape[0]), 200)
-        ax.scatter(left_points[idx, 0], left_points[idx, 1], alpha=0.3, color='cyan')
-        idx2 = np.random.choice(np.arange(right_points.shape[0]), 200)
-        ax.scatter(right_points[idx2, 0], right_points[idx2, 1], alpha=0.3, color='yellow')
-
-        fig.savefig("prova_points.jpg")
+        # img_mask = left_mask.reshape(x.shape).T
+        # ax.imshow(img * img_mask[..., None])
+        # idx = np.random.choice(np.arange(left_points.shape[0]), 200)
+        # ax.scatter(left_points[idx, 0], left_points[idx, 1], alpha=0.3, color='cyan')
+        # idx2 = np.random.choice(np.arange(right_points.shape[0]), 200)
+        # ax.scatter(right_points[idx2, 0], right_points[idx2, 1], alpha=0.3, color='yellow')
+        #
+        # fig.savefig("prova_points.jpg")
 
         # ---------ritagliare la selezione utente
         # image = self.og
@@ -159,35 +160,32 @@ class Tiling:
     #TODO prova a parallelizzare calcolo differenze
 
     # def __init__(self, master, image: Image.Image, selection: SelectionObject, border=5, search_area=0.15):
-    def __init__(self, master, image: Image.Image, start, end, shear=None, border=5, search_area=0.15, maps=None,
-                 start_tiling=True):
-        # overlap border size with respect to the original image dimensions
+    def __init__(self, master, img: Image.Image, start: TwoDPoint, end: TwoDPoint, shear: Coordinates = None, border=5, search_area=0.15,
+                 maps=None, start_tiling=True):
         self.tiled = None
         self.master = master
         self.search_ratio = search_area
         # overlap border size
         self.border = border  #TODO prova con 5, 10 e 15, 25
-        # original image
-        self.image = image
+        self.image = img  # original image
         # start and end of selected area
         self.start = start
+        print(type(start))
         self.end = end
         self.shear = shear  # coordinates of sheared rect
-        self.maps = maps
+        self.maps = maps  # all image maps
         # width and height of the user-selected area
         self.width = self.end.x - self.start.x
         self.height = self.end.y - self.start.y
         # vertical search area (size)
         self.bv = int(self.height * self.search_ratio)
-        # orizontal search area (size)
+        # horizontal search area (size)
         self.bo = int(self.width * self.search_ratio)
+
         if self.bv < 1:
             self.bv = 1
         if self.bo < 1:
             self.bo = 1
-
-        # self.module = Box(self.image, self.start[0], self.start[1],
-        #                   self.end[0], self.end[1])
 
         # check if image overflow
         if (self.end.x + self.bo) > self.image.width:
@@ -197,13 +195,13 @@ class Tiling:
             start_h = (self.end.x - self.bo, self.start.y)
             end_h = (self.end.x - self.bo + self.border, self.end.y)
 
-        # self.left_border = Box(self.image, self.start[0], self.start[1],
-        #                        self.start[0] + self.border, self.end[1])
-        # self.right_border = Box(self.image, start_h[0], start_h[1],
-        #                         end_h[0], end_h[1])
-        #
-        # self.top_border = Box(image, self.start[0], self.start[1],
-        #                       self.end[0], self.start[1] + self.border)
+        self.left_border = Box(self.image, self.start[0], self.start[1],
+                               self.start[0] + self.border, self.end[1])
+        self.right_border = Box(self.image, start_h[0], start_h[1],
+                                end_h[0], end_h[1])
+
+        self.top_border = Box(self.image, self.start[0], self.start[1],
+                              self.end[0], self.start[1] + self.border)
 
         if (self.end.y + self.bv) > self.image.height:
             start_v = (self.start.x, self.image.height - 2 * self.bv - self.border)
@@ -217,20 +215,18 @@ class Tiling:
         else:
             self._shear_setup()
 
-        # self.bottom_border = Box(image, start_v[0], start_v[1], end_v[0], end_v[1])
+        self.bottom_border = Box(self.image, start_v[0], start_v[1], end_v[0], end_v[1])
 
-        # crop_img = self.crop(self.image, self.start, self.end, self.bo, self.bv)
-        # # user-selected image (with border) to matrix
-        # matrix = crop_img.convert('RGB')
-        # self.cropped = np.array(matrix)
+        crop_img = self.crop(self.image, self.start, self.end, self.bo, self.bv)
+        # user-selected image (with border) to matrix
+        matrix = crop_img.convert('RGB')
+        self.cropped = np.array(matrix)
 
         # start module search
-        # if start_tiling:
-        # self.start_search()
+        if start_tiling:
+            self.start_search()
 
     def _rect_setup(self, start_h, end_h, start_v, end_v):
-        self.module = Box(self.image, self.start[0], self.start[1],
-                          self.end[0], self.end[1])
 
         self.left_border = Box(self.image, self.start[0], self.start[1],
                                self.start[0] + self.border, self.end[1])
@@ -238,10 +234,10 @@ class Tiling:
         self.right_border = Box(self.image, start_h[0], start_h[1],
                                 end_h[0], end_h[1])
 
-        self.top_border = Box(image, self.start[0], self.start[1],
+        self.top_border = Box(self.image, self.start[0], self.start[1],
                               self.end[0], self.start[1] + self.border)
 
-        self.bottom_border = Box(image, start_v[0], start_v[1], end_v[0], end_v[1])
+        self.bottom_border = Box(self.image, start_v[0], start_v[1], end_v[0], end_v[1])
 
         # crop_img = self.crop(self.image, self.start, self.end, self.bo, self.bv)
         # # user-selected image (with border) to matrix
@@ -250,6 +246,13 @@ class Tiling:
 
     def _shear_setup(self):
         sheared = ShearBox(self.image, self.start[0], self.start[1], self.end[0], self.end[1], self.shear)
+
+    def _get_mat(self, coord):
+
+        img = self.image.crop(coord)
+        mat = np.array(self.image.convert('RGB'))
+
+        return mat
 
     def start_search(self):
         # TODO togli tutte le stampe
@@ -261,11 +264,8 @@ class Tiling:
         f = open(txt_path, "w")
 
         # ricerca orizzontale
-        # print("h border search area (size) " + str(self.bo))
-        # print("width " + str(self.width) + " border search area ratio " + str(self.search_ratio))
         step = 0
         min_diff_right = (1, 0)  # tuple containing (min difference, step)
-
         # bordo sinistro partendo dalla coordinata 0 della selezione dell'utenete
         left_border = self.left_border.mat
 
@@ -334,14 +334,9 @@ class Tiling:
         self.bottom_border.update(self.bottom_border.start[0], self.bottom_border.start[1] + min_diff_bottom[1],
                                   self.bottom_border.end[0], self.bottom_border.end[1] + min_diff_bottom[1])
 
-        # definizione estremi del modulo
-        self.module.set_end(self.right_border.start[0],
-                            self.bottom_border.start[1])
-        self.module.set_start(self.start[0], self.start[1])
-
         # left, top, right, bottom
-        module = self.image.crop((self.module.start[0], self.module.start[1], self.module.end[0], self.module.end[1]))
-
+        mod_coord = (self.start[0], self.start[1], self.right_border.start[0], self.bottom_border.start[1])
+        module = self.image.crop(mod_coord)
         # tile extracted module
         imgm = Image.fromarray(np.array(module.convert('RGB')), mode='RGB')
         self.tiled = self.tile_image(imgm)
@@ -370,16 +365,16 @@ class Tiling:
         # return self.tiled
 
         if self.maps is not None:
-            self.crop_maps()
+            self.crop_maps(mod_coord)
 
     # def _drop_alpha(self, img):
     #     return img if img.shape[-1] == 3 else img[:, :, 1:]
 
-    def crop_maps(self):
+    def crop_maps(self, coords):
         for f in self.maps:
             img = Image.open(f)
             if img.width == self.image.width and img.height == self.image.height:
-                img = img.crop((self.module.start[0], self.module.start[1], self.module.end[0], self.module.end[1]))
+                img = img.crop(coords)
                 # self.tiled = self.tile_image(imgm)
                 # self.save_img(self.tiled, file_name="tiled.png")
                 img_name = os.path.basename(f)
@@ -391,8 +386,8 @@ class Tiling:
 
     def crop(self, img: Image.Image, start, end, h_border=0, v_border=0) -> Image.Image:
         # left, top, right, bottom = self._get_coords(self.start, self.end)
-        left, top = start
-        right, bottom = end
+        left, top = start.x, start.y
+        right, bottom = end.x, end.y
         cropped = img.crop((left - h_border, top - v_border, right + h_border, bottom + v_border))
         return cropped
 
