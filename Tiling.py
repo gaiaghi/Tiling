@@ -16,7 +16,7 @@ from PIL import Image, ImageDraw, ImageTransform
 from datetime import datetime
 from skimage.draw import line
 from CanvasImage import CanvasImage
-from CanvasImage import RectangleObject
+from Rectangle import RectangleObject
 
 OUT_DIR = './out/'
 WIDTH, HEIGHT = 900, 900
@@ -175,8 +175,8 @@ class Tiling:
         self.shear = shear  # coordinates of sheared rect
         self.maps = maps
         # width and height of the user-selected area
-        self.width = self.end[0] - self.start[0]
-        self.height = self.end[1] - self.start[1]
+        self.width = self.end.x - self.start.x
+        self.height = self.end.y - self.start.y
         # vertical search area (size)
         self.bv = int(self.height * self.search_ratio)
         # orizontal search area (size)
@@ -190,12 +190,12 @@ class Tiling:
         #                   self.end[0], self.end[1])
 
         # check if image overflow
-        if (self.end[0] + self.bo) > self.image.width:
-            start_h = (self.image.width - 2 * self.bo - self.border, self.start[1])
-            end_h = (self.image.width - 2 * self.bo, self.end[1])
+        if (self.end.x + self.bo) > self.image.width:
+            start_h = (self.image.width - 2 * self.bo - self.border, self.start.y)
+            end_h = (self.image.width - 2 * self.bo, self.end.y)
         else:
-            start_h = (self.end[0] - self.bo, self.start[1])
-            end_h = (self.end[0] - self.bo + self.border, self.end[1])
+            start_h = (self.end.x - self.bo, self.start.y)
+            end_h = (self.end.x - self.bo + self.border, self.end.y)
 
         # self.left_border = Box(self.image, self.start[0], self.start[1],
         #                        self.start[0] + self.border, self.end[1])
@@ -205,12 +205,12 @@ class Tiling:
         # self.top_border = Box(image, self.start[0], self.start[1],
         #                       self.end[0], self.start[1] + self.border)
 
-        if (self.end[1] + self.bv) > self.image.height:
-            start_v = (self.start[0], self.image.height - 2 * self.bv - self.border)
-            end_v = (self.end[0], self.image.height - 2 * self.bv)
+        if (self.end.y + self.bv) > self.image.height:
+            start_v = (self.start.x, self.image.height - 2 * self.bv - self.border)
+            end_v = (self.end.x, self.image.height - 2 * self.bv)
         else:
-            start_v = (self.start[0], self.end[1] - self.bv)
-            end_v = (self.end[0], self.end[1] - self.bv + self.border)
+            start_v = (self.start.x, self.end.y - self.bv)
+            end_v = (self.end.x, self.end.y - self.bv + self.border)
 
         if self.shear is None:
             self._rect_setup(start_h, end_h, start_v, end_v)

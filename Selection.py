@@ -1,22 +1,35 @@
 import math
 import tkinter as tk
+from abc import abstractmethod
 
 
-class TwoDPoint:
+class TwoDPoint(object):
     def __init__(self, x, y):
         self.x = x
         self.y = y
 
+    def __getitem__(self, idx):
+        if idx == 0:
+            return self.x
+        else:
+            return self.y
+
+    def __setitem__(self, idx, val):
+        if idx == 0:
+            self.x = val
+        if idx == 1:
+            self.y = val
+
     def __str__(self):
-        return "("+str(self.x) + "," + str(self.y)+")"
+        return "(" + str(self.x) + "," + str(self.y) + ")"
 
 
 class Coordinates:
-    def __init__(self, a, b, c, d):
-        self.A = a
-        self.B = b
-        self.C = c
-        self.D = d
+    def __init__(self, a: tuple[int, int], b: tuple[int, int], c: tuple[int, int], d: tuple[int, int]):
+        self.A = TwoDPoint(*a)
+        self.B = TwoDPoint(*b)
+        self.C = TwoDPoint(*c)
+        self.D = TwoDPoint(*d)
 
     def set_a(self, a):
         self.A = a
@@ -31,7 +44,7 @@ class Coordinates:
         self.D = d
 
     def __str__(self):
-        return "["+str(self.A) + "," + str(self.B) + "," + str(self.C) + "," + str(self.D)+"]"
+        return "[" + str(self.A) + "," + str(self.B) + "," + str(self.C) + "," + str(self.D) + "]"
 
 
 class SelectionObject:
@@ -49,6 +62,8 @@ class SelectionObject:
         else:
             self.start = TwoDPoint(coords[0], coords[1])
             self.end = TwoDPoint(coords[2], coords[3])
+
+        self.canvas.bind("<Double-Button-1>", self._clear)
 
     def _get_coords(self, start, end, pan=(0, 0)):
         """ Determine coords of a polygon defined by the start and
@@ -99,4 +114,33 @@ class SelectionObject:
 
         return tuple(map(lambda n: math.ceil(n), coord))
 
-    #TODO add method update?
+    def update(self, start, end):
+        pan = (self.canvas.canvasx(0), self.canvas.canvasy(0))
+        # Current extrema of inner and outer rectangles.
+        imin_x, imin_y, imax_x, imax_y = self._get_coords(start, end, pan)
+        if not all((imin_x, imin_y, imax_x, imax_y)):
+            return None
+        # TODO controllo coordinate con pan che non funzionano (_get_coords)
+
+        box_image = self.canvas.coords(self.container)  # get image area
+        box_img_int = tuple(map(int, box_image))
+
+        # # Get scroll region box
+        omin_x, omin_y, omax_x, omax_y = box_img_int
+        up_coord = (*self._coord_mapping(imin_x, imin_y, box_img_int),
+                    *self._coord_mapping(imax_x, imax_y, box_img_int))
+        print("COORD ---- " + str(up_coord))
+
+        self.start = TwoDPoint(up_coord[0], up_coord[1])
+        self.end = TwoDPoint(up_coord[2], up_coord[3])
+
+        self._update_rects(imin_x, imin_y, imax_x, imax_y, omin_x, omin_y, omax_x, omax_y)
+
+        for rect in self.rects:  # Make sure all are now visible.
+            self.canvas.itemconfigure(rect, state=tk.NORMAL)
+
+        self._show()
+
+    @abstractmethod
+    def _update_rects(self, imin_x, imin_y, imax_x, imax_y, omin_x, omin_y, omax_x, omax_y):
+        pass
