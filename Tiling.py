@@ -24,35 +24,35 @@ WIDTH, HEIGHT = 900, 900
 BACKGROUND = '#292929'
 
 
-#TODO dataclass ?
-class Box:
-    def __init__(self, img: Image.Image, left, top, right, bottom):
-        self.og = img
-        self.start = (left, top)  #TODO mettere x e y classe 2D coord?
-        self.end = (right, bottom)
-        self.img = img.crop((left, top, right, bottom))
-        self.mat = np.array(self.img.convert('RGB'))
+# class Box:
+#     def __init__(self, img: Image.Image, left, top, right, bottom):
+#         self.og = img
+#         self.start = (left, top)  #TODO mettere x e y classe 2D coord?
+#         self.end = (right, bottom)
+#         self.img = img.crop((left, top, right, bottom))
+#         self.mat = np.array(self.img.convert('RGB'))
+#
+#     def update(self, left, top, right, end):
+#         self.start = (left, top)
+#         self.end = (right, end)
+#         self.img = self.og.crop((left, top, right, end))
+#         self.mat = np.array(self.img.convert('RGB'))
+#
+#     def set_end(self, right, bottom):
+#         self.end = (right, bottom)
+#         self._reload()
+#
+#     def set_start(self, left, top):
+#         self.start = (left, top)
+#         self._reload()
+#
+#     def _reload(self):
+#         self.img = self.og.crop((self.start[0], self.start[1], self.end[0], self.end[1]))
+#         self.mat = np.array(self.img.convert('RGB'))
 
-    def update(self, left, top, right, end):
-        self.start = (left, top)
-        self.end = (right, end)
-        self.img = self.og.crop((left, top, right, end))
-        self.mat = np.array(self.img.convert('RGB'))
 
-    def set_end(self, right, bottom):
-        self.end = (right, bottom)
-        self._reload()
-
-    def set_start(self, left, top):
-        self.start = (left, top)
-        self._reload()
-
-    def _reload(self):
-        self.img = self.og.crop((self.start[0], self.start[1], self.end[0], self.end[1]))
-        self.mat = np.array(self.img.convert('RGB'))
-
-
-class ShearBox(Box):
+# class ShearBox(Box):
+class ShearBox():
     def __init__(self, img: Image.Image, left, top, right, bottom, coordinates):
         self.og = img
         self.start = (left, top)
@@ -155,12 +155,14 @@ class ShearBox(Box):
 
 
 class Tiling:
-    #TODO (solo dopo) riorganizza classi in file diversi
-    #TODO fai prove su mappe diverse, temporizza per il report
-    #TODO prova a parallelizzare calcolo differenze
+    #TODO riorganizza classi in file diversi
+    # fai prove su mappe diverse, temporizza per il report
+    # prova a parallelizzare calcolo differenze
+    # ricerca su tutte le mappe
 
     # def __init__(self, master, image: Image.Image, selection: SelectionObject, border=5, search_area=0.15):
-    def __init__(self, master, img: Image.Image, start: TwoDPoint, end: TwoDPoint, shear: Coordinates = None, border=5, search_area=0.15,
+    def __init__(self, master, img: Image.Image, start: TwoDPoint, end: TwoDPoint, shear: Coordinates = None, border=5,
+                 search_area=0.15,
                  maps=None, start_tiling=True):
         self.tiled = None
         self.master = master
@@ -170,7 +172,6 @@ class Tiling:
         self.image = img  # original image
         # start and end of selected area
         self.start = start
-        print(type(start))
         self.end = end
         self.shear = shear  # coordinates of sheared rect
         self.maps = maps  # all image maps
@@ -195,13 +196,13 @@ class Tiling:
             start_h = (self.end.x - self.bo, self.start.y)
             end_h = (self.end.x - self.bo + self.border, self.end.y)
 
-        self.left_border = Box(self.image, self.start[0], self.start[1],
-                               self.start[0] + self.border, self.end[1])
-        self.right_border = Box(self.image, start_h[0], start_h[1],
-                                end_h[0], end_h[1])
+        self.left_border = (TwoDPoint(self.start[0], self.start[1]),
+                            TwoDPoint(self.start[0] + self.border, self.end[1]))
+        self.right_border = (TwoDPoint(start_h[0], start_h[1]),
+                             TwoDPoint(end_h[0], end_h[1]))
 
-        self.top_border = Box(self.image, self.start[0], self.start[1],
-                              self.end[0], self.start[1] + self.border)
+        self.top_border = (TwoDPoint(self.start[0], self.start[1]),
+                           TwoDPoint(self.end[0], self.start[1] + self.border))
 
         if (self.end.y + self.bv) > self.image.height:
             start_v = (self.start.x, self.image.height - 2 * self.bv - self.border)
@@ -210,12 +211,14 @@ class Tiling:
             start_v = (self.start.x, self.end.y - self.bv)
             end_v = (self.end.x, self.end.y - self.bv + self.border)
 
-        if self.shear is None:
-            self._rect_setup(start_h, end_h, start_v, end_v)
-        else:
-            self._shear_setup()
+        # if self.shear is None:
+        #     self._rect_setup(start_h, end_h, start_v, end_v)
+        # else:
+        #     self._shear_setup()
+        #     #TODO modifica sopra e sotto
+        self._rect_setup(start_h, end_h, start_v, end_v)
 
-        self.bottom_border = Box(self.image, start_v[0], start_v[1], end_v[0], end_v[1])
+        self.bottom_border = (TwoDPoint(start_v[0], start_v[1]), TwoDPoint(end_v[0], end_v[1]))
 
         crop_img = self.crop(self.image, self.start, self.end, self.bo, self.bv)
         # user-selected image (with border) to matrix
@@ -228,16 +231,16 @@ class Tiling:
 
     def _rect_setup(self, start_h, end_h, start_v, end_v):
 
-        self.left_border = Box(self.image, self.start[0], self.start[1],
-                               self.start[0] + self.border, self.end[1])
+        self.left_border = (TwoDPoint(self.start[0], self.start[1]),
+                            TwoDPoint(self.start[0] + self.border, self.end[1]))
 
-        self.right_border = Box(self.image, start_h[0], start_h[1],
-                                end_h[0], end_h[1])
+        self.right_border = (TwoDPoint(start_h[0], start_h[1]),
+                             TwoDPoint(end_h[0], end_h[1]))
 
-        self.top_border = Box(self.image, self.start[0], self.start[1],
-                              self.end[0], self.start[1] + self.border)
+        self.top_border = (TwoDPoint(self.start[0], self.start[1]),
+                           TwoDPoint(self.end[0], self.start[1] + self.border))
 
-        self.bottom_border = Box(self.image, start_v[0], start_v[1], end_v[0], end_v[1])
+        self.bottom_border = (TwoDPoint(start_v[0], start_v[1]), TwoDPoint(end_v[0], end_v[1]))
 
         # crop_img = self.crop(self.image, self.start, self.end, self.bo, self.bv)
         # # user-selected image (with border) to matrix
@@ -248,10 +251,8 @@ class Tiling:
         sheared = ShearBox(self.image, self.start[0], self.start[1], self.end[0], self.end[1], self.shear)
 
     def _get_mat(self, coord):
-
         img = self.image.crop(coord)
-        mat = np.array(self.image.convert('RGB'))
-
+        mat = np.array(img.convert('RGB'))
         return mat
 
     def start_search(self):
@@ -267,16 +268,17 @@ class Tiling:
         step = 0
         min_diff_right = (1, 0)  # tuple containing (min difference, step)
         # bordo sinistro partendo dalla coordinata 0 della selezione dell'utenete
-        left_border = self.left_border.mat
+        left_border = self._get_mat((self.left_border[0].x, self.left_border[0].y,
+                                     self.left_border[1].x, self.left_border[1].y))
 
-        f.write("#left" + str(self.left_border.start) + " " + str(self.left_border.end) + "\n")
+        f.write("#left" + str(self.left_border[0]) + " " + str(self.left_border[1]) + "\n")
 
         start_time = time.time()
         #+++++++++++ fissato a sx, sposto il bordo di dx
         while step < 2 * self.bo:  # ricerca  nell'area tra -bo e +bo
 
-            r_start = (self.right_border.start[0] + step, self.right_border.start[1])
-            r_end = (self.right_border.end[0] + step, self.right_border.end[1])
+            r_start = (self.right_border[0].x + step, self.right_border[0].y)
+            r_end = (self.right_border[1].x + step, self.right_border[1].y)
 
             right_border = og_img[r_start[1]: r_end[1], r_start[0]: r_end[0], :]
 
@@ -297,14 +299,14 @@ class Tiling:
         min_diff_bottom = (1, 0)  # tuple containing (min difference, step)
 
         # bordo top partendo dalla coordinata 0 della selezione dell'utenete
-        top_border = self.top_border.mat
+        top_border = self._get_mat((self.top_border[0].x, self.top_border[0].y, self.top_border[1].x, self.top_border[1].y))
 
-        f.write("\n\n#top" + str(self.top_border.start) + " " + str(self.top_border.end) + "\n")
+        f.write("\n\n#top" + str(self.top_border[0]) + " " + str(self.top_border[1]) + "\n")
         # +++++++++++ fissato top, sposto il bordo bottom
         while step < 2 * self.bv:  # ricerca  nell'area tra -bo e +bo
 
-            b_start = (self.bottom_border.start[0], self.bottom_border.start[1] + step)
-            b_end = (self.bottom_border.end[0], self.bottom_border.end[1] + step)
+            b_start = (self.bottom_border[0].x, self.bottom_border[0].y + step)
+            b_end = (self.bottom_border[1].x, self.bottom_border[1].y + step)
 
             bottom_border = og_img[b_start[1]: b_end[1], b_start[0]: b_end[0], :]
             # TODO  ricontrolla normalize
@@ -327,24 +329,28 @@ class Tiling:
         f.close()
 
         #aggiornamento valori bordo dx
-        self.right_border.update(self.right_border.start[0] + min_diff_right[1], self.right_border.start[1],
-                                 self.right_border.end[0] + min_diff_right[1], self.right_border.end[1])
+        self.right_border = (TwoDPoint(self.right_border[0].x + min_diff_right[1], self.right_border[0].x),
+                             TwoDPoint(self.right_border[1].x + min_diff_right[1], self.right_border[1].y))
 
         #aggiornamento valori bordo sotto
-        self.bottom_border.update(self.bottom_border.start[0], self.bottom_border.start[1] + min_diff_bottom[1],
-                                  self.bottom_border.end[0], self.bottom_border.end[1] + min_diff_bottom[1])
+        self.bottom_border = (TwoDPoint(self.bottom_border[0].x, self.bottom_border[0].y + min_diff_bottom[1]),
+                              TwoDPoint(self.bottom_border[1].x, self.bottom_border[1].y + min_diff_bottom[1]))
 
         # left, top, right, bottom
-        mod_coord = (self.start[0], self.start[1], self.right_border.start[0], self.bottom_border.start[1])
+        mod_coord = (self.start[0], self.start[1], self.right_border[0].x, self.bottom_border[0].y)
         module = self.image.crop(mod_coord)
         # tile extracted module
         imgm = Image.fromarray(np.array(module.convert('RGB')), mode='RGB')
         self.tiled = self.tile_image(imgm)
 
-        self.save_img(self.left_border.img, 'left_border.png')
-        self.save_img(self.right_border.img, 'right_border.png')
-        self.save_img(self.top_border.img, 'top_border.png')
-        self.save_img(self.bottom_border.img, 'bottom_border.png')
+        self.save_img(self.image.crop((self.left_border[0].x, self.left_border[0].y,
+                                       self.left_border[1].x, self.left_border[1].y)), 'left_border.png')
+        self.save_img(self.image.crop((self.right_border[0].x, self.right_border[0].y,
+                                       self.right_border[1].x, self.right_border[1].y)), 'right_border.png')
+        self.save_img(self.image.crop((self.top_border[0].x, self.top_border[0].y,
+                                       self.top_border[1].x, self.top_border[1].y)), 'top_border.png')
+        self.save_img(self.image.crop((self.bottom_border[0].x, self.bottom_border[0].y,
+                                       self.bottom_border[1].x, self.bottom_border[1].y)), 'bottom_border.png')
 
         imgc = Image.fromarray(np.array(self.crop(self.image, self.start, self.end).convert('RGB')), mode='RGB')
         # print("selection crop "+str(self.selection.width)+" x "+str(self.selection.height))
