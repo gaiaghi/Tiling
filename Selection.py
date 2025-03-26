@@ -2,6 +2,7 @@ import math
 import tkinter as tk
 from abc import abstractmethod
 
+
 #TODO sposta 2d point, coords in un file utils.py
 class TwoDPoint(object):
     def __init__(self, x, y):
@@ -24,24 +25,48 @@ class TwoDPoint(object):
         return "(" + str(self.x) + "," + str(self.y) + ")"
 
 
-class Coordinates:
+class Coordinates(object):
     def __init__(self, a: tuple[int, int], b: tuple[int, int], c: tuple[int, int], d: tuple[int, int]):
         self.A = TwoDPoint(*a)
         self.B = TwoDPoint(*b)
         self.C = TwoDPoint(*c)
         self.D = TwoDPoint(*d)
+        self.start = self.A
+        self.end = self.C
 
     def set_a(self, a):
         self.A = a
+        self.start = self.A
 
     def set_b(self, b):
         self.B = b
 
     def set_c(self, c):
         self.C = c
+        self.start = self.C
 
     def set_d(self, d):
         self.D = d
+
+    def __getitem__(self, idx):
+        if idx == 0:
+            return self.A
+        if idx == 1:
+            return self.B
+        if idx == 2:
+            return self.C
+        if idx == 3:
+            return self.D
+
+    def __setitem__(self, idx, val: TwoDPoint):
+        if idx == 0:
+            self.A = val
+        if idx == 1:
+            self.B = val
+        if idx == 2:
+            self.C = val
+        if idx == 3:
+            self.D = val
 
     def __str__(self):
         return "[" + str(self.A) + "," + str(self.B) + "," + str(self.C) + "," + str(self.D) + "]"

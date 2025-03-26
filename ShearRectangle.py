@@ -202,6 +202,14 @@ class ShearRectangle(SelectionObject):
         v_line_pixels = list(zip(rr, cc))
         rr, cc = line(int(p1[0]), int(p1[1]), int(p2[0]), int(p2[1]))
         h_line_pixels = list(zip(rr, cc))
-        r, c = p4[1] - p1[1] + 1, p2[0] - p1[0] + 1
+        # r, c = p4[1] - p1[1] + 1, p2[0] - p1[0] + 1
+        r, c = len(v_line_pixels), len(h_line_pixels)
         mat_index = np.zeros((r, c, 2))
+        mat_index[:,0] = v_line_pixels
         mat_index[0] = h_line_pixels
+        h_index = [(p[0]-h_line_pixels[0][0], p[1]-h_line_pixels[0][1]) for p in h_line_pixels]
+        v_index = [(p[0]-v_line_pixels[0][0], p[1]-v_line_pixels[0][1]) for p in v_line_pixels]
+
+        for i in range(1, r):
+            for j in range(1, c):
+                mat_index[i][j] = mat_index[i][0] + h_index[j]

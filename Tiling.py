@@ -23,135 +23,109 @@ OUT_DIR = './out/'
 WIDTH, HEIGHT = 900, 900
 BACKGROUND = '#292929'
 
-
-# class Box:
-#     def __init__(self, img: Image.Image, left, top, right, bottom):
+#
+# # class ShearBox(Box):
+# class ShearBox():
+#     def __init__(self, img: Image.Image, left, top, right, bottom, coordinates):
 #         self.og = img
-#         self.start = (left, top)  #TODO mettere x e y classe 2D coord?
-#         self.end = (right, bottom)
-#         self.img = img.crop((left, top, right, bottom))
-#         self.mat = np.array(self.img.convert('RGB'))
-#
-#     def update(self, left, top, right, end):
 #         self.start = (left, top)
-#         self.end = (right, end)
-#         self.img = self.og.crop((left, top, right, end))
-#         self.mat = np.array(self.img.convert('RGB'))
-#
-#     def set_end(self, right, bottom):
 #         self.end = (right, bottom)
-#         self._reload()
+#         # self.img = img.crop((left, top, right, bottom))
+#         # self.mat = np.array(self.img.convert('RGB'))
+#         self.coord = coordinates
+#         self.width = max(self.coord[2][0], self.coord[3][0]) - min(self.coord[0][0], self.coord[1][0])
+#         self.height = max(self.coord[1][1], self.coord[2][1]) - min(self.coord[0][1], self.coord[3][1])
 #
-#     def set_start(self, left, top):
-#         self.start = (left, top)
-#         self._reload()
+#         # -----> get pixels of line
+#         # rr, cc = line(int(self.coord[0][1]), int(self.coord[0][0]), int(self.coord[3][1]), int(self.coord[3][0]))
+#         # self.v_line_pixels = list(zip(rr, cc))
+#         # rr, cc = line(int(self.coord[0][1]), int(self.coord[0][0]), int(self.coord[1][1]), int(self.coord[1][0]))
+#         # self.h_line_pixels = list(zip(rr, cc))
+#         # print("h line " + str(self.h_line_pixels))
 #
-#     def _reload(self):
-#         self.img = self.og.crop((self.start[0], self.start[1], self.end[0], self.end[1]))
-#         self.mat = np.array(self.img.convert('RGB'))
-
-
-# class ShearBox(Box):
-class ShearBox():
-    def __init__(self, img: Image.Image, left, top, right, bottom, coordinates):
-        self.og = img
-        self.start = (left, top)
-        self.end = (right, bottom)
-        # self.img = img.crop((left, top, right, bottom))
-        # self.mat = np.array(self.img.convert('RGB'))
-        self.coord = coordinates
-        self.width = max(self.coord[2][0], self.coord[3][0]) - min(self.coord[0][0], self.coord[1][0])
-        self.height = max(self.coord[1][1], self.coord[2][1]) - min(self.coord[0][1], self.coord[3][1])
-
-        rr, cc = line(int(self.coord[0][1]), int(self.coord[0][0]), int(self.coord[3][1]), int(self.coord[3][0]))
-        self.v_line_pixels = list(zip(rr, cc))
-        rr, cc = line(int(self.coord[0][1]), int(self.coord[0][0]), int(self.coord[1][1]), int(self.coord[1][0]))
-        self.h_line_pixels = list(zip(rr, cc))
-        # print("h line " + str(self.h_line_pixels))
-
-        #TODO sposta codice e cambia border
-        border = 5
-        search_area = 0.15
-        bo = int(self.width * search_area)
-        # print("larghezza sel " + str(self.width))
-
-        theta = self.angle3(self.coord[1], self.coord[0], (self.coord[2][0], self.coord[0][1]))
-        left_ends = [
-            (int(self.coord[0][0] + border * math.cos(theta)), int(self.coord[0][1] + border * math.sin(theta))),
-            (int(self.coord[3][0] + border * math.cos(theta)), int(self.coord[3][1] + border * math.sin(theta)))]
-        # print("self.coord " + str(self.coord))
-        # print("theta " + str(theta))
-        # print("left_ends " + str(left_ends))
-
-        left_path = Path((self.coord[0], left_ends[0], left_ends[1], self.coord[3]))
-        # xminL, yminL, xmaxL, ymaxL = np.asarray(left_path.get_extents(), dtype=int).ravel()
-
-        #TODO parti da -search_area
-        right_starts = [
-            (int((self.coord[1][0] - bo) + border * math.cos(theta)), int(self.coord[1][1] + border * math.sin(theta))),
-            (int((self.coord[2][0] - bo) + border * math.cos(theta)), int(self.coord[2][1] + border * math.sin(theta)))]
-        right_ends = [(int((self.coord[1][0] - bo + border) + border * math.cos(theta)), right_starts[0][1]),
-                      (int((self.coord[2][0] - bo + border) + border * math.cos(theta)), right_starts[1][1])]
-        right_path = Path((right_starts[0], right_ends[0], right_ends[1], right_starts[1]))
-        # xminR, yminR, xmaxR, ymaxR = np.asarray(right_path.get_extents(), dtype=int).ravel()
-
-        # create a mesh grid for the whole image
-        x, y = np.mgrid[:self.og.height, :self.og.width]
-        # mesh grid to a list of points
-        points = np.vstack((x.ravel(), y.ravel())).T
-        # select points included in the path
-        left_mask = left_path.contains_points(points)
-        left_points = points[np.where(left_mask)]
-        # print("Left\n" + str(len(left_points)))
-        # print(left_points.shape)
-
-        right_mask = right_path.contains_points(points)
-        right_points = points[np.where(right_mask)]
-        # print("Right\n" + str(len(right_points)))
-        # print(right_points.shape)
-
-        fig, ax = plt.subplots()
-
-        # masked image plot
-        # img_mask = left_mask.reshape(x.shape).T
-        # ax.imshow(img * img_mask[..., None])
-        # idx = np.random.choice(np.arange(left_points.shape[0]), 200)
-        # ax.scatter(left_points[idx, 0], left_points[idx, 1], alpha=0.3, color='cyan')
-        # idx2 = np.random.choice(np.arange(right_points.shape[0]), 200)
-        # ax.scatter(right_points[idx2, 0], right_points[idx2, 1], alpha=0.3, color='yellow')
-        #
-        # fig.savefig("prova_points.jpg")
-
-        # ---------ritagliare la selezione utente
-        # image = self.og
-        # background = Image.new("RGBA", image.size, (0, 0, 0, 0))
-        # mask = Image.new("RGBA", image.size, 0)
-        # draw = ImageDraw.Draw(mask)
-        # draw.polygon((self.coord[0], self.coord[1], self.coord[2], self.coord[3]), fill='green', outline=None)
-        # # prova = ImageTransform.QuadTransform((self.coord[0][0], self.coord[0][1], self.coord[1][0], self.coord[1][1],
-        # #                                      self.coord[2][0], self.coord[2][1], self.coord[3][0], self.coord[3][1]))
-        # new_img = Image.composite(image, background, mask)
-        # new_img.show()
-        #
-        # selection = np.array(new_img)
-        # extract = []
-        # for line in selection:
-        #     if not all(p[3] == 0 for p in line):
-        #         extract.append(line)
-        #
-        # extract = np.array(extract)
-        # idx = np.argwhere(np.all(extract[..., :] == 0, axis=0))
-        # a2 = np.delete(extract, idx, axis=1)
-        #
-        # cropped = Image.fromarray(np.array(a2)[:,:,:3], mode='RGB')
-        #
-        # cropped.show()
-        # print(a2.shape)
-
-    @staticmethod
-    def angle3(a, b, c):
-        ang = math.degrees(math.atan2(c[1] - b[1], c[0] - b[0]) - math.atan2(a[1] - b[1], a[0] - b[0]))
-        return ang + 360 if ang < 0 else ang
+#         #TODO sposta codice e cambia border
+#         border = 5
+#         search_area = 0.15
+#         bo = int(self.width * search_area)
+#         # print("larghezza sel " + str(self.width))
+#
+#         theta = self.angle3(self.coord[1], self.coord[0], (self.coord[2][0], self.coord[0][1]))
+#         left_ends = [
+#             (int(self.coord[0][0] + border * math.cos(theta)), int(self.coord[0][1] + border * math.sin(theta))),
+#             (int(self.coord[3][0] + border * math.cos(theta)), int(self.coord[3][1] + border * math.sin(theta)))]
+#         # print("self.coord " + str(self.coord))
+#         # print("theta " + str(theta))
+#         # print("left_ends " + str(left_ends))
+#
+#         left_path = Path((self.coord[0], left_ends[0], left_ends[1], self.coord[3]))
+#         # xminL, yminL, xmaxL, ymaxL = np.asarray(left_path.get_extents(), dtype=int).ravel()
+#
+#         #TODO parti da -search_area
+#         right_starts = [
+#             (int((self.coord[1][0] - bo) + border * math.cos(theta)), int(self.coord[1][1] + border * math.sin(theta))),
+#             (int((self.coord[2][0] - bo) + border * math.cos(theta)), int(self.coord[2][1] + border * math.sin(theta)))]
+#         right_ends = [(int((self.coord[1][0] - bo + border) + border * math.cos(theta)), right_starts[0][1]),
+#                       (int((self.coord[2][0] - bo + border) + border * math.cos(theta)), right_starts[1][1])]
+#         right_path = Path((right_starts[0], right_ends[0], right_ends[1], right_starts[1]))
+#         # xminR, yminR, xmaxR, ymaxR = np.asarray(right_path.get_extents(), dtype=int).ravel()
+#
+#         # create a mesh grid for the whole image
+#         x, y = np.mgrid[:self.og.height, :self.og.width]
+#         # mesh grid to a list of points
+#         points = np.vstack((x.ravel(), y.ravel())).T
+#         # select points included in the path
+#         left_mask = left_path.contains_points(points)
+#         left_points = points[np.where(left_mask)]
+#         # print("Left\n" + str(len(left_points)))
+#         # print(left_points.shape)
+#
+#         right_mask = right_path.contains_points(points)
+#         right_points = points[np.where(right_mask)]
+#         # print("Right\n" + str(len(right_points)))
+#         # print(right_points.shape)
+#
+#         fig, ax = plt.subplots()
+#
+#         # masked image plot
+#         # img_mask = left_mask.reshape(x.shape).T
+#         # ax.imshow(img * img_mask[..., None])
+#         # idx = np.random.choice(np.arange(left_points.shape[0]), 200)
+#         # ax.scatter(left_points[idx, 0], left_points[idx, 1], alpha=0.3, color='cyan')
+#         # idx2 = np.random.choice(np.arange(right_points.shape[0]), 200)
+#         # ax.scatter(right_points[idx2, 0], right_points[idx2, 1], alpha=0.3, color='yellow')
+#         #
+#         # fig.savefig("prova_points.jpg")
+#
+#         # ---------ritagliare la selezione utente
+#         # image = self.og
+#         # background = Image.new("RGBA", image.size, (0, 0, 0, 0))
+#         # mask = Image.new("RGBA", image.size, 0)
+#         # draw = ImageDraw.Draw(mask)
+#         # draw.polygon((self.coord[0], self.coord[1], self.coord[2], self.coord[3]), fill='green', outline=None)
+#         # # prova = ImageTransform.QuadTransform((self.coord[0][0], self.coord[0][1], self.coord[1][0], self.coord[1][1],
+#         # #                                      self.coord[2][0], self.coord[2][1], self.coord[3][0], self.coord[3][1]))
+#         # new_img = Image.composite(image, background, mask)
+#         # new_img.show()
+#         #
+#         # selection = np.array(new_img)
+#         # extract = []
+#         # for line in selection:
+#         #     if not all(p[3] == 0 for p in line):
+#         #         extract.append(line)
+#         #
+#         # extract = np.array(extract)
+#         # idx = np.argwhere(np.all(extract[..., :] == 0, axis=0))
+#         # a2 = np.delete(extract, idx, axis=1)
+#         #
+#         # cropped = Image.fromarray(np.array(a2)[:,:,:3], mode='RGB')
+#         #
+#         # cropped.show()
+#         # print(a2.shape)
+#
+#     @staticmethod
+#     def angle3(a, b, c):
+#         ang = math.degrees(math.atan2(c[1] - b[1], c[0] - b[0]) - math.atan2(a[1] - b[1], a[0] - b[0]))
+#         return ang #+ 360 if ang < 0 else ang
 
 
 class Tiling:
@@ -173,7 +147,7 @@ class Tiling:
         # start and end of selected area
         self.start = start
         self.end = end
-        self.shear = shear  # coordinates of sheared rect
+        self.shear = Coordinates(shear[0], shear[1], shear[2], shear[3])  # coordinates of sheared rect
         self.maps = maps  # all image maps
         # width and height of the user-selected area
         self.width = self.end.x - self.start.x
@@ -189,20 +163,13 @@ class Tiling:
             self.bo = 1
 
         # check if image overflow
+        #TODO check con x e y max per shear
         if (self.end.x + self.bo) > self.image.width:
             start_h = (self.image.width - 2 * self.bo - self.border, self.start.y)
             end_h = (self.image.width - 2 * self.bo, self.end.y)
         else:
             start_h = (self.end.x - self.bo, self.start.y)
             end_h = (self.end.x - self.bo + self.border, self.end.y)
-
-        self.left_border = (TwoDPoint(self.start[0], self.start[1]),
-                            TwoDPoint(self.start[0] + self.border, self.end[1]))
-        self.right_border = (TwoDPoint(start_h[0], start_h[1]),
-                             TwoDPoint(end_h[0], end_h[1]))
-
-        self.top_border = (TwoDPoint(self.start[0], self.start[1]),
-                           TwoDPoint(self.end[0], self.start[1] + self.border))
 
         if (self.end.y + self.bv) > self.image.height:
             start_v = (self.start.x, self.image.height - 2 * self.bv - self.border)
@@ -211,19 +178,12 @@ class Tiling:
             start_v = (self.start.x, self.end.y - self.bv)
             end_v = (self.end.x, self.end.y - self.bv + self.border)
 
-        # if self.shear is None:
-        #     self._rect_setup(start_h, end_h, start_v, end_v)
-        # else:
-        #     self._shear_setup()
-        #     #TODO modifica sopra e sotto
-        self._rect_setup(start_h, end_h, start_v, end_v)
-
-        self.bottom_border = (TwoDPoint(start_v[0], start_v[1]), TwoDPoint(end_v[0], end_v[1]))
-
-        crop_img = self.crop(self.image, self.start, self.end, self.bo, self.bv)
-        # user-selected image (with border) to matrix
-        matrix = crop_img.convert('RGB')
-        self.cropped = np.array(matrix)
+        # Borders setup
+        if self.shear is None:
+            self._rect_setup(start_h, end_h, start_v, end_v)
+        else:
+            self._shear_setup(start_h, end_h, start_v, end_v)  #TODO shear setup
+        # self._rect_setup(start_h, end_h, start_v, end_v)
 
         # start module search
         if start_tiling:
@@ -231,25 +191,152 @@ class Tiling:
 
     def _rect_setup(self, start_h, end_h, start_v, end_v):
 
-        self.left_border = (TwoDPoint(self.start[0], self.start[1]),
-                            TwoDPoint(self.start[0] + self.border, self.end[1]))
+        self.left_border = Coordinates((self.start[0], self.start[1]),
+                                       (self.start[0] + self.border, self.start[1]),
+                                       (self.start[0] + self.border, self.end[1]),
+                                       (self.start[0], self.end[1]))
 
-        self.right_border = (TwoDPoint(start_h[0], start_h[1]),
-                             TwoDPoint(end_h[0], end_h[1]))
+        self.right_border = Coordinates((start_h[0], start_h[1]),
+                                        (end_h[0], start_h[1]),
+                                        (end_h[0], end_h[1]),
+                                        (start_h[0], end_h[1]))
 
-        self.top_border = (TwoDPoint(self.start[0], self.start[1]),
-                           TwoDPoint(self.end[0], self.start[1] + self.border))
+        self.top_border = Coordinates((self.start[0], self.start[1]),
+                                      (self.end[0], self.start[1]),
+                                      (self.end[0], self.start[1] + self.border),
+                                      (self.start[0], self.start[1] + self.border))
 
-        self.bottom_border = (TwoDPoint(start_v[0], start_v[1]), TwoDPoint(end_v[0], end_v[1]))
+        self.bottom_border = Coordinates((start_v[0], start_v[1]),
+                                         (end_v[0], start_v[1]),
+                                         (end_v[0], end_v[1]),
+                                         (start_v[0], end_v[1]))
 
         # crop_img = self.crop(self.image, self.start, self.end, self.bo, self.bv)
         # # user-selected image (with border) to matrix
         # matrix = crop_img.convert('RGB')
         # self.cropped = np.array(matrix)
 
-    def _shear_setup(self):
-        sheared = ShearBox(self.image, self.start[0], self.start[1], self.end[0], self.end[1], self.shear)
+    def _shear_setup(self, start_h, end_h, start_v, end_v):
+        theta_lr = self.angle3(self.shear.B, self.shear.A,(self.shear.B[0], self.shear.A[1]))
+        # theta_lr = self.angle3((self.shear.B[0], self.shear.A[1]), self.shear.B, self.shear.A)
+        theta_tb = self.angle3(self.shear.D, self.shear.A, (self.shear.A[0], self.shear.D[1]))
 
+        delta_xl = int(self.border * math.cos(theta_lr))
+        delta_yl = -int(self.border * math.sin(theta_lr))
+        print("border, bo, bv ", self.border, self.bo, self.bv)
+        print("theta_lr", theta_lr)
+        print("delta xl yl "+str((delta_xl, delta_yl)))
+        # LEFT border
+        left_ends = [
+            (self.shear.A[0] + delta_xl, self.shear.A[1] + delta_yl),
+            (self.shear.D[0] + delta_xl, self.shear.D[1] + delta_yl)]
+        self.left_border = Coordinates((self.shear.A.x, self.shear.A.y), left_ends[0],
+                                       left_ends[1], (self.shear.D.x, self.shear.D.y))
+
+        # RIGHT border
+        delta_xr = int(- self.bo * math.cos(theta_lr))
+        delta_yr = int( self.bo * math.sin(theta_lr))
+        print("delta xr yr "+str((delta_xr, delta_yr)))
+        right_starts = [
+            (self.shear.B[0] + delta_xr, self.shear.B[1] + delta_yr),
+            (self.shear.C[0] + delta_xr, self.shear.C[1] + delta_yr)]
+        print(self.shear)
+        # print("-self.bo + self.border", -self.bo + self.border)
+        # print("delta xr yr "+str((delta_xr, delta_yr)))
+        # print("bo, border ", self.bo, self.border)
+        # delta_xr2 = (-self.bo + self.border) * int(math.cos(theta_lr))
+        # delta_yr2 = (-self.bo + self.border) * int(math.sin(theta_lr))
+        delta_xr2 = delta_xr + delta_xl
+        delta_yr2 = delta_yr + delta_yl
+        right_ends = [
+            (self.shear.B[0] + delta_xr2, self.shear.B[1]+delta_yr2),
+            (self.shear.C[0] + delta_xr2, self.shear.C[1]+delta_yr2)]
+        self.right_border = Coordinates(right_starts[0], right_ends[0], right_ends[1], right_starts[1])
+
+        # TOP border
+        delta_xt = int(self.border * math.sin(theta_tb))
+        delta_yt = int(self.border * math.cos(theta_tb))
+        print("theta_tb", theta_tb)
+        print("delta xt, yt", delta_xt, delta_yt)
+        top_ends = [
+            (self.shear[0][0] + delta_xt, self.shear[0][1] + delta_yt),
+            (self.shear[1][0] + delta_xt, self.shear[1][1] + delta_yt)]
+
+        self.top_border = Coordinates((self.shear.A.x, self.shear.A.y), (self.shear.B.x, self.shear.B.y), top_ends[1], top_ends[0])
+
+        # BOTTOM border
+        delta_xb = int(-self.bv * math.sin(theta_tb))
+        delta_yb = int(-self.bv * math.cos(theta_tb))
+        print("delta xb, yb", delta_xb, delta_yb)
+        bottom_starts = [
+            (self.shear.D[0] + delta_xb, self.shear.D[1] + delta_yb),
+            (self.shear.C[0] + delta_xb, self.shear.C[1] + delta_yb)]
+
+        # delta_xb2 = int((-self.bv + self.border) * math.sin(theta_tb))
+        # delta_yb2 = int((-self.bv + self.border) * math.cos(theta_tb))
+        delta_xb2 = delta_xb + delta_xt
+        delta_yb2 = delta_yb + delta_yt
+        print("delta xb2, yb2", delta_xb2, delta_yb2)
+        bottom_ends = [
+            (self.shear.D[0] + delta_xb2, self.shear.D[1] + delta_yb2),
+            (self.shear.C[0] + delta_xb2, self.shear.C[1] + delta_yb2)]
+
+        self.bottom_border = Coordinates(bottom_starts[0], bottom_starts[1], bottom_ends[1], bottom_ends[0])
+
+        # left_path = Path(((self.shear[0].x, self.shear[0].y), left_ends[0],
+        #                   left_ends[1], (self.shear[3].x, self.shear[3].y)))
+        # right_path = Path((right_starts[0], right_ends[0], right_ends[1], right_starts[1]))
+        # top_path = Path(((self.shear[0].x, self.shear[0].y), (self.shear[1].x, self.shear[1].y),
+        #                  top_ends[0], top_ends[1]))
+        # bottom_path = Path((bottom_starts[0], bottom_starts[1], bottom_ends[1], bottom_ends[0]))
+        #
+        #
+        # # create a mesh grid for the bbox
+        # maxx = max(self.shear.A.x, self.shear.D.x, self.shear.C.x, self.shear.B.x)
+        # minx = min(self.shear.A.x, self.shear.D.x, self.shear.C.x, self.shear.B.x)
+        # maxy = max(self.shear.A.y, self.shear.D.y, self.shear.C.y, self.shear.B.y)
+        # miny = min(self.shear.A.y, self.shear.D.y, self.shear.C.y, self.shear.B.y)
+        #
+        # # x, y = np.mgrid[miny:maxy, minx:maxx]
+        # x, y = np.mgrid[:self.image.height, :self.image.width]
+        #
+        # # mesh grid to a list of points
+        # points = np.vstack((x.ravel(), y.ravel())).T
+        # # select points included in the path
+        # left_mask = left_path.contains_points(points)
+        # right_mask = right_path.contains_points(points)
+        # top_mask = top_path.contains_points(points)
+        # bottom_mask = bottom_path.contains_points(points)
+        #
+        # left_points = points[np.where(left_mask)]
+        # right_points = points[np.where(right_mask)]
+        # top_points = points[np.where(top_mask)]
+        # bottom_points = points[np.where(bottom_mask)]
+        # # print(top_points.shape)
+        print("self left"+str(self.left_border))
+        print("self right"+str(self.right_border))
+        print("self top"+str(self.top_border))
+        print("self bottom"+str(self.bottom_border))
+        #
+        #
+        # fig, ax = plt.subplots()
+        #
+        # # masked image plot
+        # img_mask = left_mask.reshape(x.shape).T
+        # ax.imshow(self.image * img_mask[..., None])
+        # idx = np.random.choice(np.arange(left_points.shape[0]), 200)
+        # ax.scatter(left_points[idx, 0], left_points[idx, 1], alpha=0.3, color='cyan')
+        # idx2 = np.random.choice(np.arange(right_points.shape[0]), 200)
+        # ax.scatter(right_points[idx2, 0], right_points[idx2, 1], alpha=0.3, color='yellow')
+        #
+        # idx2 = np.random.choice(np.arange(top_points.shape[0]), 200)
+        # ax.scatter(top_points[idx2, 0], top_points[idx2, 1], alpha=0.3, color='green')
+        # idx2 = np.random.choice(np.arange(bottom_points.shape[0]), 200)
+        # ax.scatter(bottom_points[idx2, 0], bottom_points[idx2, 1], alpha=0.3, color='red')
+        #
+        # fig.savefig("prova_points.jpg")
+
+    #TODO riscrivi per il caso di shear
     def _get_mat(self, coord):
         img = self.image.crop(coord)
         mat = np.array(img.convert('RGB'))
@@ -268,17 +355,17 @@ class Tiling:
         step = 0
         min_diff_right = (1, 0)  # tuple containing (min difference, step)
         # bordo sinistro partendo dalla coordinata 0 della selezione dell'utenete
-        left_border = self._get_mat((self.left_border[0].x, self.left_border[0].y,
-                                     self.left_border[1].x, self.left_border[1].y))
+        left_border = self._get_mat((self.left_border.start.x, self.left_border.start.y,
+                                     self.left_border.end.x, self.left_border.end.y))
 
-        f.write("#left" + str(self.left_border[0]) + " " + str(self.left_border[1]) + "\n")
+        f.write("#left" + str(self.left_border.start) + " " + str(self.left_border.end) + "\n")
 
         start_time = time.time()
         #+++++++++++ fissato a sx, sposto il bordo di dx
         while step < 2 * self.bo:  # ricerca  nell'area tra -bo e +bo
 
-            r_start = (self.right_border[0].x + step, self.right_border[0].y)
-            r_end = (self.right_border[1].x + step, self.right_border[1].y)
+            r_start = (self.right_border.start.x + step, self.right_border.start.y)
+            r_end = (self.right_border.end.x + step, self.right_border.end.y)
 
             right_border = og_img[r_start[1]: r_end[1], r_start[0]: r_end[0], :]
 
@@ -299,14 +386,15 @@ class Tiling:
         min_diff_bottom = (1, 0)  # tuple containing (min difference, step)
 
         # bordo top partendo dalla coordinata 0 della selezione dell'utenete
-        top_border = self._get_mat((self.top_border[0].x, self.top_border[0].y, self.top_border[1].x, self.top_border[1].y))
+        top_border = self._get_mat((self.top_border.start.x, self.top_border.start.y,
+                                    self.top_border.end.x, self.top_border.end.y))
 
-        f.write("\n\n#top" + str(self.top_border[0]) + " " + str(self.top_border[1]) + "\n")
+        f.write("\n\n#top" + str(self.top_border.start) + " " + str(self.top_border.end) + "\n")
         # +++++++++++ fissato top, sposto il bordo bottom
         while step < 2 * self.bv:  # ricerca  nell'area tra -bo e +bo
 
-            b_start = (self.bottom_border[0].x, self.bottom_border[0].y + step)
-            b_end = (self.bottom_border[1].x, self.bottom_border[1].y + step)
+            b_start = (self.bottom_border.start.x, self.bottom_border.start.y + step)
+            b_end = (self.bottom_border.end.x, self.bottom_border.end.y + step)
 
             bottom_border = og_img[b_start[1]: b_end[1], b_start[0]: b_end[0], :]
             # TODO  ricontrolla normalize
@@ -329,28 +417,32 @@ class Tiling:
         f.close()
 
         #aggiornamento valori bordo dx
-        self.right_border = (TwoDPoint(self.right_border[0].x + min_diff_right[1], self.right_border[0].x),
-                             TwoDPoint(self.right_border[1].x + min_diff_right[1], self.right_border[1].y))
+        self.right_border = Coordinates((self.right_border.start.x + min_diff_right[1], self.right_border.start.y),
+                                        (self.right_border.end.x + min_diff_right[1], self.right_border.start.y),
+                                        (self.right_border.end.x + min_diff_right[1], self.right_border.end.y),
+                                        (self.right_border.start.x + min_diff_right[1], self.right_border.end.y))
 
         #aggiornamento valori bordo sotto
-        self.bottom_border = (TwoDPoint(self.bottom_border[0].x, self.bottom_border[0].y + min_diff_bottom[1]),
-                              TwoDPoint(self.bottom_border[1].x, self.bottom_border[1].y + min_diff_bottom[1]))
+        self.bottom_border = Coordinates((self.bottom_border.start.x, self.bottom_border.start.y + min_diff_bottom[1]),
+                                         (self.bottom_border.end.x, self.bottom_border.start.y + min_diff_bottom[1]),
+                                         (self.bottom_border.end.x, self.bottom_border.end.y + min_diff_bottom[1]),
+                                         (self.bottom_border.start.x, self.bottom_border.end.y + min_diff_bottom[1]))
 
         # left, top, right, bottom
-        mod_coord = (self.start[0], self.start[1], self.right_border[0].x, self.bottom_border[0].y)
+        mod_coord = (self.start[0], self.start[1], self.right_border.start.x, self.bottom_border.start.y)
         module = self.image.crop(mod_coord)
         # tile extracted module
         imgm = Image.fromarray(np.array(module.convert('RGB')), mode='RGB')
         self.tiled = self.tile_image(imgm)
 
-        self.save_img(self.image.crop((self.left_border[0].x, self.left_border[0].y,
-                                       self.left_border[1].x, self.left_border[1].y)), 'left_border.png')
-        self.save_img(self.image.crop((self.right_border[0].x, self.right_border[0].y,
-                                       self.right_border[1].x, self.right_border[1].y)), 'right_border.png')
-        self.save_img(self.image.crop((self.top_border[0].x, self.top_border[0].y,
-                                       self.top_border[1].x, self.top_border[1].y)), 'top_border.png')
-        self.save_img(self.image.crop((self.bottom_border[0].x, self.bottom_border[0].y,
-                                       self.bottom_border[1].x, self.bottom_border[1].y)), 'bottom_border.png')
+        self.save_img(self.image.crop((self.left_border.start.x, self.left_border.start.y,
+                                       self.left_border.end.x, self.left_border.end.y)), 'left_border.png')
+        self.save_img(self.image.crop((self.right_border.start.x, self.right_border.start.y,
+                                       self.right_border.end.x, self.right_border.end.y)), 'right_border.png')
+        self.save_img(self.image.crop((self.top_border.start.x, self.top_border.start.y,
+                                       self.top_border.end.x, self.top_border.end.y)), 'top_border.png')
+        self.save_img(self.image.crop((self.bottom_border.start.x, self.bottom_border.start.y,
+                                       self.bottom_border.end.x, self.bottom_border.end.y)), 'bottom_border.png')
 
         imgc = Image.fromarray(np.array(self.crop(self.image, self.start, self.end).convert('RGB')), mode='RGB')
         # print("selection crop "+str(self.selection.width)+" x "+str(self.selection.height))
@@ -459,6 +551,12 @@ class Tiling:
         # file_path = os.path.join(OUT_DIR, file_name)
         fig.savefig(file_path)
         plt.close()
+
+    @staticmethod
+    def angle3(a, b, c):
+        # ang = math.degrees(math.atan2(c[1] - b[1], c[0] - b[0]) - math.atan2(a[1] - b[1], a[0] - b[0]))
+        ang = math.atan2(c[1] - b[1], c[0] - b[0]) - math.atan2(a[1] - b[1], a[0] - b[0])
+        return ang #+ 360 if ang < 0 else ang
 
 
 class Application(tk.Frame):
