@@ -21,11 +21,11 @@ class ShearRectangle(SelectionObject):
         representing its diagonal + user edit.
     """
 
-    def __init__(self, canvas, container, width, height, select_opts=None, coords=None):
+    def __init__(self, canvas, container, width, height, img, select_opts=None, coords=None):
         if select_opts is None:
             select_opts = SELECT_OPTS
 
-        super(ShearRectangle, self).__init__(canvas, container, width, height, select_opts, coords)
+        super(ShearRectangle, self).__init__(canvas, container, width, height, img, select_opts, coords)
 
         self.draft = None
         self.moving_start = None
@@ -213,3 +213,16 @@ class ShearRectangle(SelectionObject):
         for i in range(1, r):
             for j in range(1, c):
                 mat_index[i][j] = mat_index[i][0] + h_index[j]
+
+        return mat_index
+
+    def get_mat(self, coord):
+        idx = self.matrix(coord[0], coord[1], coord[2], coord[3])
+        og_img = self.img.convert('RGB')
+        og_img = np.array(og_img)
+        mat = np.zeros((idx.shape[0], idx.shape[1], 3))
+        for r in range(0, idx.shape[0]):
+            for c in range(0, idx.shape[1]):
+                i = idx[r, c]
+                mat[r][c] = og_img[int(i[0])][int(i[1])]
+        return idx

@@ -15,6 +15,8 @@ from matplotlib.path import Path
 from PIL import Image, ImageDraw, ImageTransform
 from datetime import datetime
 from skimage.draw import line
+
+import Selection
 from CanvasImage import CanvasImage
 from Selection import Coordinates, TwoDPoint
 from Rectangle import RectangleObject
@@ -22,6 +24,7 @@ from Rectangle import RectangleObject
 OUT_DIR = './out/'
 WIDTH, HEIGHT = 900, 900
 BACKGROUND = '#292929'
+
 
 #
 # # class ShearBox(Box):
@@ -135,9 +138,11 @@ class Tiling:
     # ricerca su tutte le mappe
 
     # def __init__(self, master, image: Image.Image, selection: SelectionObject, border=5, search_area=0.15):
-    def __init__(self, master, img: Image.Image, start: TwoDPoint, end: TwoDPoint, shear: Coordinates = None, border=5,
+    def __init__(self, master, img: Image.Image, start: TwoDPoint, end: TwoDPoint, selection: Selection,
+                 shear: Coordinates = None, border=10,
                  search_area=0.15,
                  maps=None, start_tiling=True):
+        self.selection = selection
         self.tiled = None
         self.master = master
         self.search_ratio = search_area
@@ -217,7 +222,7 @@ class Tiling:
         # self.cropped = np.array(matrix)
 
     def _shear_setup(self, start_h, end_h, start_v, end_v):
-        theta_lr = self.angle3(self.shear.B, self.shear.A,(self.shear.B[0], self.shear.A[1]))
+        theta_lr = self.angle3(self.shear.B, self.shear.A, (self.shear.B[0], self.shear.A[1]))
         # theta_lr = self.angle3((self.shear.B[0], self.shear.A[1]), self.shear.B, self.shear.A)
         theta_tb = self.angle3(self.shear.D, self.shear.A, (self.shear.A[0], self.shear.D[1]))
 
@@ -225,7 +230,7 @@ class Tiling:
         delta_yl = -int(self.border * math.sin(theta_lr))
         print("border, bo, bv ", self.border, self.bo, self.bv)
         print("theta_lr", theta_lr)
-        print("delta xl yl "+str((delta_xl, delta_yl)))
+        print("delta xl yl " + str((delta_xl, delta_yl)))
         # LEFT border
         left_ends = [
             (self.shear.A[0] + delta_xl, self.shear.A[1] + delta_yl),
@@ -235,8 +240,8 @@ class Tiling:
 
         # RIGHT border
         delta_xr = int(- self.bo * math.cos(theta_lr))
-        delta_yr = int( self.bo * math.sin(theta_lr))
-        print("delta xr yr "+str((delta_xr, delta_yr)))
+        delta_yr = int(self.bo * math.sin(theta_lr))
+        print("delta xr yr " + str((delta_xr, delta_yr)))
         right_starts = [
             (self.shear.B[0] + delta_xr, self.shear.B[1] + delta_yr),
             (self.shear.C[0] + delta_xr, self.shear.C[1] + delta_yr)]
@@ -249,8 +254,8 @@ class Tiling:
         delta_xr2 = delta_xr + delta_xl
         delta_yr2 = delta_yr + delta_yl
         right_ends = [
-            (self.shear.B[0] + delta_xr2, self.shear.B[1]+delta_yr2),
-            (self.shear.C[0] + delta_xr2, self.shear.C[1]+delta_yr2)]
+            (self.shear.B[0] + delta_xr2, self.shear.B[1] + delta_yr2),
+            (self.shear.C[0] + delta_xr2, self.shear.C[1] + delta_yr2)]
         self.right_border = Coordinates(right_starts[0], right_ends[0], right_ends[1], right_starts[1])
 
         # TOP border
@@ -262,7 +267,8 @@ class Tiling:
             (self.shear[0][0] + delta_xt, self.shear[0][1] + delta_yt),
             (self.shear[1][0] + delta_xt, self.shear[1][1] + delta_yt)]
 
-        self.top_border = Coordinates((self.shear.A.x, self.shear.A.y), (self.shear.B.x, self.shear.B.y), top_ends[1], top_ends[0])
+        self.top_border = Coordinates((self.shear.A.x, self.shear.A.y), (self.shear.B.x, self.shear.B.y), top_ends[1],
+                                      top_ends[0])
 
         # BOTTOM border
         delta_xb = int(-self.bv * math.sin(theta_tb))
@@ -313,10 +319,10 @@ class Tiling:
         # top_points = points[np.where(top_mask)]
         # bottom_points = points[np.where(bottom_mask)]
         # # print(top_points.shape)
-        print("self left"+str(self.left_border))
-        print("self right"+str(self.right_border))
-        print("self top"+str(self.top_border))
-        print("self bottom"+str(self.bottom_border))
+        print("self left" + str(self.left_border))
+        print("self right" + str(self.right_border))
+        print("self top" + str(self.top_border))
+        print("self bottom" + str(self.bottom_border))
         #
         #
         # fig, ax = plt.subplots()
@@ -336,11 +342,39 @@ class Tiling:
         #
         # fig.savefig("prova_points.jpg")
 
+    def _get_masked_img(self):
+        image = self.image
+        background = Image.new("RGBA", image.size, (0, 0, 0, 0))
+        mask = Image.new("RGBA", image.size, 0)
+        draw = ImageDraw.Draw(mask)
+        draw.polygon(((self.shear[0].x, self.shear[0].y), (self.shear[1].x, self.shear[1].y),
+                      (self.shear[2].x, self.shear[2].y), (self.shear[3].x, self.shear[3].y)), fill='green',
+                     outline=None)
+        new_img = Image.composite(image, background, mask)
+        new_img.show()
+
+        # selection = np.array(new_img)
+        # extract = []
+        # for l in selection:
+        #     if not all(p[3] == 0 for p in l):
+        #         extract.append(l)
+        #
+        # extract = np.array(extract)
+        # idx = np.argwhere(np.all(extract[..., :] == 0, axis=0))
+        # a2 = np.delete(extract, idx, axis=1)
+        #
+        # cropped = Image.fromarray(np.array(a2)[:,:,:3], mode='RGB')
+        # cropped.show()
+        return new_img
+
     #TODO riscrivi per il caso di shear
-    def _get_mat(self, coord):
-        img = self.image.crop(coord)
-        mat = np.array(img.convert('RGB'))
-        return mat
+    # def _get_mat(self, coord):
+    #     if self.shear is None:
+    #         img = self.image.crop(coord)
+    #         mat = np.array(img.convert('RGB'))
+    #     else:
+    #         mat = self._get_masked_img()
+    #     return mat
 
     def start_search(self):
         # TODO togli tutte le stampe
@@ -355,8 +389,8 @@ class Tiling:
         step = 0
         min_diff_right = (1, 0)  # tuple containing (min difference, step)
         # bordo sinistro partendo dalla coordinata 0 della selezione dell'utenete
-        left_border = self._get_mat((self.left_border.start.x, self.left_border.start.y,
-                                     self.left_border.end.x, self.left_border.end.y))
+        left_border = self.selection.get_mat((self.left_border.A, self.left_border.B,
+                                              self.left_border.C, self.left_border.D))
 
         f.write("#left" + str(self.left_border.start) + " " + str(self.left_border.end) + "\n")
 
@@ -364,10 +398,12 @@ class Tiling:
         #+++++++++++ fissato a sx, sposto il bordo di dx
         while step < 2 * self.bo:  # ricerca  nell'area tra -bo e +bo
 
-            r_start = (self.right_border.start.x + step, self.right_border.start.y)
-            r_end = (self.right_border.end.x + step, self.right_border.end.y)
+            # r_start = (self.right_border.start.x + step, self.right_border.start.y)
+            # r_end = (self.right_border.end.x + step, self.right_border.end.y)
 
-            right_border = og_img[r_start[1]: r_end[1], r_start[0]: r_end[0], :]
+            # right_border = og_img[r_start[1]: r_end[1], r_start[0]: r_end[0], :]
+            right_border = self.selection.get_mat((self.right_border.A, self.right_border.B,
+                                                   self.right_border.C, self.right_border.D))
 
             diff = self.normalize(right_border) - self.normalize(left_border)
             m_norm = sum(sum(sum(abs(diff)))) / right_border.size  # Manhattan norm
@@ -375,7 +411,8 @@ class Tiling:
                 min_diff_right = (m_norm, step)
             h_diff_values.append(m_norm)
             step += 1
-            f.write(str(step) + " " + str(r_start) + " " + str(r_end) + " " + str(m_norm) + "\n")
+            # f.write(str(step) + " " + str(r_start) + " " + str(r_end) + " " + str(m_norm) + "\n")
+            f.write(str(step) + " " + str(m_norm) + "\n")
 
         print("Minimun (h) distanze between borders find at step " + str(min_diff_right[1]) + ": " + str(
             min_diff_right[0]))
@@ -386,8 +423,8 @@ class Tiling:
         min_diff_bottom = (1, 0)  # tuple containing (min difference, step)
 
         # bordo top partendo dalla coordinata 0 della selezione dell'utenete
-        top_border = self._get_mat((self.top_border.start.x, self.top_border.start.y,
-                                    self.top_border.end.x, self.top_border.end.y))
+        top_border = self.selection.get_mat((self.top_border.A, self.top_border.B,
+                                             self.top_border.C, self.top_border.D))
 
         f.write("\n\n#top" + str(self.top_border.start) + " " + str(self.top_border.end) + "\n")
         # +++++++++++ fissato top, sposto il bordo bottom
@@ -396,7 +433,8 @@ class Tiling:
             b_start = (self.bottom_border.start.x, self.bottom_border.start.y + step)
             b_end = (self.bottom_border.end.x, self.bottom_border.end.y + step)
 
-            bottom_border = og_img[b_start[1]: b_end[1], b_start[0]: b_end[0], :]
+            bottom_border = self.selection.get_mat((self.bottom_border.A, self.bottom_border.B,
+                                                    self.bottom_border.C, self.bottom_border.D))
             # TODO  ricontrolla normalize
             diff = self.normalize(bottom_border) - self.normalize(top_border)
             m_norm = sum(sum(sum(abs(diff)))) / bottom_border.size  # Manhattan norm
@@ -556,7 +594,7 @@ class Tiling:
     def angle3(a, b, c):
         # ang = math.degrees(math.atan2(c[1] - b[1], c[0] - b[0]) - math.atan2(a[1] - b[1], a[0] - b[0]))
         ang = math.atan2(c[1] - b[1], c[0] - b[0]) - math.atan2(a[1] - b[1], a[0] - b[0])
-        return ang #+ 360 if ang < 0 else ang
+        return ang  #+ 360 if ang < 0 else ang
 
 
 class Application(tk.Frame):
@@ -668,7 +706,8 @@ class Application(tk.Frame):
         # self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
         #                      self.canvas.selection_obj.end, maps=self.folder_maps)
         self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
-                             self.canvas.selection_obj.end, shear=self.canvas.selection_obj.coordinates,
+                             self.canvas.selection_obj.end, self.canvas.selection_obj,
+                             shear=self.canvas.selection_obj.coordinates,
                              maps=self.folder_maps)
 
     def do_popup(self, event=None):

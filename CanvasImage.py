@@ -194,7 +194,7 @@ class CanvasImage:
         #TODO creazione classe in base al tipo di selezione che si vuole fare
         
         # self.selection_obj = SelectionObject(self.canvas, self.container, self.imwidth, self.imheight, SELECT_OPTS, coords=coords)
-        self.selection_obj = ShearRectangle(self.canvas, self.container, self.imwidth, self.imheight, coords=coords)
+        self.selection_obj = ShearRectangle(self.canvas, self.container, self.imwidth, self.imheight, img, coords=coords)
 
         # Callback function to update it given two points of its diagonal.
         def on_drag(start, end, **kwarg):  # Must accept these arguments.

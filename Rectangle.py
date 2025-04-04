@@ -11,8 +11,8 @@ class RectangleObject(SelectionObject):  #TODO cambia nome (rectangle tipo)
         representing its diagonal.
     """
 
-    def __init__(self, canvas, container, width, height, select_opts, coords=None):
-        super(RectangleObject, self).__init__(canvas, container, width, height, select_opts, coords)
+    def __init__(self, canvas, container, width, height, img, select_opts, coords=None):
+        super(RectangleObject, self).__init__(canvas, container, width, height, img, select_opts, coords)
 
         # Options for areas outside rectanglar selection.
         select_opts1 = self.select_opts.copy()  # Avoid modifying passed argument.
@@ -52,3 +52,9 @@ class RectangleObject(SelectionObject):  #TODO cambia nome (rectangle tipo)
         y_coords = [y for y in range(p1[1], p3[1] + 1)]
         output = np.asarray(list(itertools.product(x_coords, y_coords)))
         return output.reshape((w, h, 2))
+
+    def get_mat(self, coord):
+        img = self.img.crop((coord[0].x, coord[0].y, coord[1].x, coord[1].y))
+        mat = np.array(img.convert('RGB'))
+
+        return mat

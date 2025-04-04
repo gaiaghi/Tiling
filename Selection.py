@@ -73,9 +73,10 @@ class Coordinates(object):
 
 
 class SelectionObject:
-    def __init__(self, canvas, container, width, height, select_opts, coords=None):
+    def __init__(self, canvas: tk.Canvas, container, width, height, img, select_opts, coords=None):
         self.canvas = canvas
         self.container = container
+        self.img = img
         self.img_width = width
         self.img_height = height
         self.select_opts = select_opts
@@ -172,4 +173,8 @@ class SelectionObject:
 
     @abstractmethod
     def matrix(self, p1, p2, p3, p4):
+        pass
+
+    @abstractmethod
+    def get_mat(self, coord: tuple[TwoDPoint, ...]):
         pass
