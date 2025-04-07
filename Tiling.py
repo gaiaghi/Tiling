@@ -223,7 +223,6 @@ class Tiling:
 
     def _shear_setup(self, start_h, end_h, start_v, end_v):
         theta_lr = self.angle3(self.shear.B, self.shear.A, (self.shear.B[0], self.shear.A[1]))
-        # theta_lr = self.angle3((self.shear.B[0], self.shear.A[1]), self.shear.B, self.shear.A)
         theta_tb = self.angle3(self.shear.D, self.shear.A, (self.shear.A[0], self.shear.D[1]))
 
         delta_xl = int(self.border * math.cos(theta_lr))
@@ -249,18 +248,25 @@ class Tiling:
         # print("-self.bo + self.border", -self.bo + self.border)
         # print("delta xr yr "+str((delta_xr, delta_yr)))
         # print("bo, border ", self.bo, self.border)
-        # delta_xr2 = (-self.bo + self.border) * int(math.cos(theta_lr))
-        # delta_yr2 = (-self.bo + self.border) * int(math.sin(theta_lr))
         delta_xr2 = delta_xr + delta_xl
         delta_yr2 = delta_yr + delta_yl
+        self.delta_r = (delta_xl, delta_yl)
+        # self.delta_l = (delta_xl, delta_yl)
         right_ends = [
             (self.shear.B[0] + delta_xr2, self.shear.B[1] + delta_yr2),
             (self.shear.C[0] + delta_xr2, self.shear.C[1] + delta_yr2)]
         self.right_border = Coordinates(right_starts[0], right_ends[0], right_ends[1], right_starts[1])
 
+        right_endpoint = [
+            (self.shear.B[0] - delta_xr, self.shear.B[1] - delta_yr),
+            (self.shear.C[0] - delta_xr, self.shear.C[1] - delta_yr)]
+        self.right_end = right_endpoint
+        print("delta xr2 yr2", delta_xr2, delta_yr2)
+
         # TOP border
         delta_xt = int(self.border * math.sin(theta_tb))
         delta_yt = int(self.border * math.cos(theta_tb))
+        # self.delta_t = (delta_xt, delta_yt)
         print("theta_tb", theta_tb)
         print("delta xt, yt", delta_xt, delta_yt)
         top_ends = [
@@ -278,69 +284,28 @@ class Tiling:
             (self.shear.D[0] + delta_xb, self.shear.D[1] + delta_yb),
             (self.shear.C[0] + delta_xb, self.shear.C[1] + delta_yb)]
 
-        # delta_xb2 = int((-self.bv + self.border) * math.sin(theta_tb))
-        # delta_yb2 = int((-self.bv + self.border) * math.cos(theta_tb))
         delta_xb2 = delta_xb + delta_xt
         delta_yb2 = delta_yb + delta_yt
+        self.delta_b = (delta_xt, delta_yt)
         print("delta xb2, yb2", delta_xb2, delta_yb2)
         bottom_ends = [
-            (self.shear.D[0] + delta_xb2, self.shear.D[1] + delta_yb2),
-            (self.shear.C[0] + delta_xb2, self.shear.C[1] + delta_yb2)]
+            (self.shear.C[0] + delta_xb2, self.shear.C[1] + delta_yb2),
+            (self.shear.D[0] + delta_xb2, self.shear.D[1] + delta_yb2)]
 
-        self.bottom_border = Coordinates(bottom_starts[0], bottom_starts[1], bottom_ends[1], bottom_ends[0])
+        self.bottom_border = Coordinates(bottom_starts[0], bottom_starts[1], bottom_ends[0], bottom_ends[1])
 
-        # left_path = Path(((self.shear[0].x, self.shear[0].y), left_ends[0],
-        #                   left_ends[1], (self.shear[3].x, self.shear[3].y)))
-        # right_path = Path((right_starts[0], right_ends[0], right_ends[1], right_starts[1]))
-        # top_path = Path(((self.shear[0].x, self.shear[0].y), (self.shear[1].x, self.shear[1].y),
-        #                  top_ends[0], top_ends[1]))
-        # bottom_path = Path((bottom_starts[0], bottom_starts[1], bottom_ends[1], bottom_ends[0]))
-        #
-        #
-        # # create a mesh grid for the bbox
-        # maxx = max(self.shear.A.x, self.shear.D.x, self.shear.C.x, self.shear.B.x)
-        # minx = min(self.shear.A.x, self.shear.D.x, self.shear.C.x, self.shear.B.x)
-        # maxy = max(self.shear.A.y, self.shear.D.y, self.shear.C.y, self.shear.B.y)
-        # miny = min(self.shear.A.y, self.shear.D.y, self.shear.C.y, self.shear.B.y)
-        #
-        # # x, y = np.mgrid[miny:maxy, minx:maxx]
-        # x, y = np.mgrid[:self.image.height, :self.image.width]
-        #
-        # # mesh grid to a list of points
-        # points = np.vstack((x.ravel(), y.ravel())).T
-        # # select points included in the path
-        # left_mask = left_path.contains_points(points)
-        # right_mask = right_path.contains_points(points)
-        # top_mask = top_path.contains_points(points)
-        # bottom_mask = bottom_path.contains_points(points)
-        #
-        # left_points = points[np.where(left_mask)]
-        # right_points = points[np.where(right_mask)]
-        # top_points = points[np.where(top_mask)]
-        # bottom_points = points[np.where(bottom_mask)]
-        # # print(top_points.shape)
+        bottom_endpoint = [
+            (self.shear.D[0] - delta_xb, self.shear.D[1] - delta_yb),
+            (self.shear.C[0] - delta_xb, self.shear.C[1] - delta_yb)
+        ]
+        self.bottom_end = bottom_endpoint
+
         print("self left" + str(self.left_border))
         print("self right" + str(self.right_border))
         print("self top" + str(self.top_border))
         print("self bottom" + str(self.bottom_border))
-        #
-        #
-        # fig, ax = plt.subplots()
-        #
-        # # masked image plot
-        # img_mask = left_mask.reshape(x.shape).T
-        # ax.imshow(self.image * img_mask[..., None])
-        # idx = np.random.choice(np.arange(left_points.shape[0]), 200)
-        # ax.scatter(left_points[idx, 0], left_points[idx, 1], alpha=0.3, color='cyan')
-        # idx2 = np.random.choice(np.arange(right_points.shape[0]), 200)
-        # ax.scatter(right_points[idx2, 0], right_points[idx2, 1], alpha=0.3, color='yellow')
-        #
-        # idx2 = np.random.choice(np.arange(top_points.shape[0]), 200)
-        # ax.scatter(top_points[idx2, 0], top_points[idx2, 1], alpha=0.3, color='green')
-        # idx2 = np.random.choice(np.arange(bottom_points.shape[0]), 200)
-        # ax.scatter(bottom_points[idx2, 0], bottom_points[idx2, 1], alpha=0.3, color='red')
-        #
-        # fig.savefig("prova_points.jpg")
+        print("right endside " + str(self.right_end))
+        print("bottom endside " + str(self.bottom_end))
 
     def _get_masked_img(self):
         image = self.image
@@ -385,25 +350,41 @@ class Tiling:
         txt_path = os.path.join(OUT_DIR, "search_info.txt")
         f = open(txt_path, "w")
 
+        rr, cc = line(int(self.right_border.A.x), int(self.right_border.A.y),  # da start dx (A) alla fine area ricerca
+                      int(self.right_end[0][0]), int(self.right_end[0][1]))
+        t_right_pixels = list(zip(rr, cc))
+        rr, cc = line(int(self.right_border.D.x), int(self.right_border.D.y),  # da start dx (D) alla fine area ricerca
+                      int(self.right_end[1][0]), int(self.right_end[1][1]))
+        b_right_pixels = list(zip(rr, cc))
+
         # ricerca orizzontale
         step = 0
         min_diff_right = (1, 0)  # tuple containing (min difference, step)
-        # bordo sinistro partendo dalla coordinata 0 della selezione dell'utenete
+        # bordo sinistro partendo dalla coordinata 0 della selezione dell'utenete (fissato)
         left_border = self.selection.get_mat((self.left_border.A, self.left_border.B,
                                               self.left_border.C, self.left_border.D))
 
         f.write("#left" + str(self.left_border.start) + " " + str(self.left_border.end) + "\n")
 
         start_time = time.time()
+        print("numero pixel top right ", len(t_right_pixels))
+        print("numero pixel bottom right ", len(b_right_pixels))
+        print("2*self.bo ", 2*self.bo)
         #+++++++++++ fissato a sx, sposto il bordo di dx
         while step < 2 * self.bo:  # ricerca  nell'area tra -bo e +bo
-
             # r_start = (self.right_border.start.x + step, self.right_border.start.y)
             # r_end = (self.right_border.end.x + step, self.right_border.end.y)
 
             # right_border = og_img[r_start[1]: r_end[1], r_start[0]: r_end[0], :]
-            right_border = self.selection.get_mat((self.right_border.A, self.right_border.B,
-                                                   self.right_border.C, self.right_border.D))
+
+            # right_border = self.selection.get_mat((self.right_border.A, self.right_border.B,
+            #                                        self.right_border.C, self.right_border.D))
+            right_border = self.selection.get_mat((t_right_pixels[step],
+                                                   (t_right_pixels[step][0] + self.delta_r[0],
+                                                    t_right_pixels[step][1] + self.delta_r[1]),
+                                                   (b_right_pixels[step][0] + self.delta_r[0],
+                                                    b_right_pixels[step][1] + self.delta_r[1]),
+                                                   b_right_pixels[step]))
 
             diff = self.normalize(right_border) - self.normalize(left_border)
             m_norm = sum(sum(sum(abs(diff)))) / right_border.size  # Manhattan norm
@@ -422,19 +403,49 @@ class Tiling:
         step = 0
         min_diff_bottom = (1, 0)  # tuple containing (min difference, step)
 
+        rr, cc = line(int(self.bottom_border.A.x), int(self.bottom_border.A.y),
+                      # da start dx (A) alla fine area ricerca
+                      int(self.bottom_end[0][0]), int(self.bottom_end[0][1]))
+        l_bottom_pixels = list(zip(rr, cc))
+        rr, cc = line(int(self.bottom_border.B.x), int(self.bottom_border.B.y),
+                      # da start dx (D) alla fine area ricerca
+                      int(self.bottom_end[1][0]), int(self.bottom_end[1][1]))
+        r_bottom_pixels = list(zip(rr, cc))
+
         # bordo top partendo dalla coordinata 0 della selezione dell'utenete
         top_border = self.selection.get_mat((self.top_border.A, self.top_border.B,
                                              self.top_border.C, self.top_border.D))
 
         f.write("\n\n#top" + str(self.top_border.start) + " " + str(self.top_border.end) + "\n")
-        # +++++++++++ fissato top, sposto il bordo bottom
-        while step < 2 * self.bv:  # ricerca  nell'area tra -bo e +bo
 
+        print("numero pixel left bottom ", len(l_bottom_pixels))
+        print("numero pixel right bottom ", len(r_bottom_pixels))
+        print("first last pixel left bottom ", l_bottom_pixels[0], l_bottom_pixels[-1])
+        print("first last pixel right bottom ",r_bottom_pixels[0], r_bottom_pixels[-1])
+        print("2*self.bo ", 2*self.bv)
+
+        # +++++++++++ fissato top, sposto il bordo bottom
+        while step < 2 * self.bv and step < len(l_bottom_pixels):  # ricerca  nell'area tra -bo e +bo
+            print(step)
             b_start = (self.bottom_border.start.x, self.bottom_border.start.y + step)
             b_end = (self.bottom_border.end.x, self.bottom_border.end.y + step)
 
-            bottom_border = self.selection.get_mat((self.bottom_border.A, self.bottom_border.B,
-                                                    self.bottom_border.C, self.bottom_border.D))
+            # bottom_border = self.selection.get_mat((self.bottom_border.A, self.bottom_border.B,
+            #                                         self.bottom_border.C, self.bottom_border.D))
+            bottom_border = self.selection.get_mat((l_bottom_pixels[step],
+                                                    r_bottom_pixels[step],
+                                                    (r_bottom_pixels[step][0] + self.delta_b[0],
+                                                     r_bottom_pixels[step][1] + self.delta_b[1]),
+                                                    (l_bottom_pixels[step][0] + self.delta_b[0],
+                                                     l_bottom_pixels[step][1] + self.delta_b[1])
+                                                    ))
+            # print((l_bottom_pixels[step],
+            #                                         r_bottom_pixels[step],
+            #                                         (r_bottom_pixels[step][0] + self.delta_b[0],
+            #                                          r_bottom_pixels[step][1] + self.delta_b[1]),
+            #                                         (l_bottom_pixels[step][0] + self.delta_b[0],
+            #                                          l_bottom_pixels[step][1] + self.delta_b[1])
+            #                                         ))
             # TODO  ricontrolla normalize
             diff = self.normalize(bottom_border) - self.normalize(top_border)
             m_norm = sum(sum(sum(abs(diff)))) / bottom_border.size  # Manhattan norm
