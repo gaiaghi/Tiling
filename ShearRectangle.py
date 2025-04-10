@@ -46,6 +46,7 @@ class ShearRectangle(SelectionObject):
 
         if coords is not None:
             self.update(self.start, self.end)
+            # self.coordinates = Coordinates()
 
         self.canvas.bind("<Shift-Button-1>", self.click_callback_x)
         self.canvas.bind("<Shift-B1-Motion>", self.move_line)
@@ -183,41 +184,61 @@ class ShearRectangle(SelectionObject):
     def _update_coordinates(self):
         box_image = self.canvas.coords(self.container)  # get image area
         box_img_int = tuple(map(int, box_image))
+        # mapping screen coordinate to image coordinate (when zoomed)
+        a = self._coord_mapping(self.canvas.coords(self.rects[0])[0], self.canvas.coords(self.rects[0])[1],
+                                box_img_int)
+        b = self._coord_mapping(self.canvas.coords(self.rects[1])[0], self.canvas.coords(self.rects[1])[1],
+                                box_img_int)
+        c = self._coord_mapping(self.canvas.coords(self.rects[2])[0], self.canvas.coords(self.rects[2])[1],
+                                box_img_int)
+        # d = self._coord_mapping(self.canvas.coords(self.rects[3])[0], self.canvas.coords(self.rects[3])[1],
+        #                         box_img_int)
+        d = (a[0] + (c[0] - b[0]), a[1] + (c[1] - b[1]))
 
-        self.coordinates = (
-            self._coord_mapping(self.canvas.coords(self.rects[0])[0], self.canvas.coords(self.rects[0])[1],
-                                box_img_int),
-            self._coord_mapping(self.canvas.coords(self.rects[1])[0], self.canvas.coords(self.rects[1])[1],
-                                box_img_int),
-            self._coord_mapping(self.canvas.coords(self.rects[2])[0], self.canvas.coords(self.rects[2])[1],
-                                box_img_int),
-            self._coord_mapping(self.canvas.coords(self.rects[3])[0], self.canvas.coords(self.rects[3])[1],
-                                box_img_int))
+        self.coordinates = (a, b, c, d)
 
         self.start = TwoDPoint(self.coordinates[0][0], self.coordinates[0][1])
         self.end = TwoDPoint(self.coordinates[2][0], self.coordinates[2][1])
 
-    def matrix(self, p1, p2, p3, p4):
-        rr, cc = line(int(p1[0]), int(p1[1]), int(p4[0]), int(p4[1]))
-        v_line_pixels = list(zip(rr, cc))
-        rr, cc = line(int(p1[0]), int(p1[1]), int(p2[0]), int(p2[1]))
-        h_line_pixels = list(zip(rr, cc))
-        # r, c = p4[1] - p1[1] + 1, p2[0] - p1[0] + 1
-        r, c = len(v_line_pixels), len(h_line_pixels)
-        mat_index = np.zeros((r, c, 2))
-        mat_index[:,0] = v_line_pixels
-        mat_index[0] = h_line_pixels
-        h_index = [(p[0]-h_line_pixels[0][0], p[1]-h_line_pixels[0][1]) for p in h_line_pixels]
-        v_index = [(p[0]-v_line_pixels[0][0], p[1]-v_line_pixels[0][1]) for p in v_line_pixels]
+    # def matrix(self, p1, p2, p3, p4, mss=None):
+    #     rr, cc = line(int(p1[0]), int(p1[1]), int(p4[0]), int(p4[1]))
+    #     v_line_pixels = list(zip(rr, cc))
+    #     rr, cc = line(int(p1[0]), int(p1[1]), int(p2[0]), int(p2[1]))
+    #     h_line_pixels = list(zip(rr, cc))
+    #     # r, c = p4[1] - p1[1] + 1, p2[0] - p1[0] + 1
+    #     r, c = len(v_line_pixels), len(h_line_pixels)
+    #     if mss is not None:
+    #         print("get  matrix (r, c), p1 p2 -  ", mss, r, c, p1, p2, " - ", p1, p4)
+    #     mat_index = np.zeros((r, c, 2))
+    #     mat_index[:, 0] = v_line_pixels
+    #     mat_index[0] = h_line_pixels
+    #     h_index = [(p[0] - h_line_pixels[0][0], p[1] - h_line_pixels[0][1]) for p in h_line_pixels]
+    #     # v_index = [(p[0]-v_line_pixels[0][0], p[1]-v_line_pixels[0][1]) for p in v_line_pixels]
+    #
+    #     for i in range(1, r):
+    #         for j in range(1, c):
+    #             mat_index[i][j] = mat_index[i][0] + h_index[j]
+    #
+    #     return mat_index
 
+    def matrix(self, p1, deltax, deltay, mss=None):
+        # r, c = p4[1] - p1[1] + 1, p2[0] - p1[0] + 1
+        r, c = len(deltay), len(deltax)
+        mat_index = np.zeros((r, c, 2))
+        mat_index[0][0] = np.array([p1.x, p1.y])
+        # init first column
         for i in range(1, r):
+            mat_index[i][0] = tuple(map(sum, zip(p1, deltay[i])))
+        # populate matrix
+        for i in range(r):
             for j in range(1, c):
-                mat_index[i][j] = mat_index[i][0] + h_index[j]
+                mat_index[i][j] = tuple(map(sum, zip(mat_index[i][0], deltax[j])))
 
         return mat_index
 
-    def get_mat(self, coord):
-        idx = self.matrix(coord[0], coord[1], coord[2], coord[3])
+    def get_mat(self, coord, deltax, deltay, mss=None):
+        # idx = self.matrix(coord[0], coord[1], coord[2], coord[3], mss)
+        idx = self.matrix(coord[0], deltax, deltay, mss)
         og_img = self.img.convert('RGB')
         og_img = np.array(og_img)
         mat = np.zeros((idx.shape[0], idx.shape[1], 3))
@@ -225,4 +246,4 @@ class ShearRectangle(SelectionObject):
             for c in range(0, idx.shape[1]):
                 i = idx[r, c]
                 mat[r][c] = og_img[int(i[0])][int(i[1])]
-        return idx
+        return mat

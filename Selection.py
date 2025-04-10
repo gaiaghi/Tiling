@@ -146,7 +146,6 @@ class SelectionObject:
         imin_x, imin_y, imax_x, imax_y = self._get_coords(start, end, pan)
         if not all((imin_x, imin_y, imax_x, imax_y)):
             return None
-        # TODO controllo coordinate con pan che non funzionano (_get_coords)
 
         box_image = self.canvas.coords(self.container)  # get image area
         box_img_int = tuple(map(int, box_image))
@@ -176,5 +175,5 @@ class SelectionObject:
         pass
 
     @abstractmethod
-    def get_mat(self, coord: tuple[TwoDPoint, ...]):
+    def get_mat(self, coord: tuple[TwoDPoint, ...], deltax, deltay, mss= None):
         pass
