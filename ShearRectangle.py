@@ -222,7 +222,6 @@ class ShearRectangle(SelectionObject):
     #     return mat_index
 
     def matrix(self, p1, deltax, deltay, mss=None):
-        # r, c = p4[1] - p1[1] + 1, p2[0] - p1[0] + 1
         r, c = len(deltay), len(deltax)
         mat_index = np.zeros((r, c, 2))
         mat_index[0][0] = np.array([p1.x, p1.y])
@@ -233,17 +232,18 @@ class ShearRectangle(SelectionObject):
         for i in range(r):
             for j in range(1, c):
                 mat_index[i][j] = tuple(map(sum, zip(mat_index[i][0], deltax[j])))
-
+        if mss is not None:
+            print("mat_index")
+            print(mat_index)
         return mat_index
 
     def get_mat(self, coord, deltax, deltay, mss=None):
-        # idx = self.matrix(coord[0], coord[1], coord[2], coord[3], mss)
         idx = self.matrix(coord[0], deltax, deltay, mss)
         og_img = self.img.convert('RGB')
         og_img = np.array(og_img)
-        mat = np.zeros((idx.shape[0], idx.shape[1], 3))
+        mat = np.zeros((idx.shape[0], idx.shape[1], 3), dtype=np.uint8)
         for r in range(0, idx.shape[0]):
             for c in range(0, idx.shape[1]):
                 i = idx[r, c]
-                mat[r][c] = og_img[int(i[0])][int(i[1])]
+                mat[r][c] = og_img[int(i[1])][int(i[0])]
         return mat

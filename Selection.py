@@ -8,6 +8,7 @@ class TwoDPoint(object):
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        self.tuple = (x, y)
 
     def __getitem__(self, idx):
         if idx == 0:

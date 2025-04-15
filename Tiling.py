@@ -118,20 +118,6 @@ class Tiling:
         # self.cropped = np.array(matrix)
 
     def _shear_setup(self, start_h, end_h, start_v, end_v):
-        # theta_lr = self.angle3(self.shear.B, self.shear.A, (self.shear.B[0], self.shear.A[1]))
-        # theta_tb = self.angle3(self.shear.D, self.shear.A, (self.shear.A[0], self.shear.D[1]))
-
-        # delta_xl = int(self.border * math.cos(theta_lr))
-        # delta_yl = -int(self.border * math.sin(theta_lr))
-        # print("border, bo, bv ", self.border, self.bo, self.bv)
-        # print("theta_lr", theta_lr)
-        # print("delta xl yl " + str((delta_xl, delta_yl)))
-        # LEFT border
-        # left_ends = [
-        #     (self.shear.A[0] + delta_xl, self.shear.A[1] + delta_yl),
-        #     (self.shear.D[0] + delta_xl, self.shear.D[1] + delta_yl)]
-        # self.left_border = Coordinates((self.shear.A.x, self.shear.A.y), left_ends[0],
-        #                                left_ends[1], (self.shear.D.x, self.shear.D.y))
 
         self.left_pixels = self.get_line(self.shear.A, self.shear.D)
         self.right_pixels = self.get_line(self.shear.B, self.shear.C)
@@ -141,11 +127,6 @@ class Tiling:
         self.delta_idx_RL = [(p[0] - self.right_pixels[0][0], p[1] - self.right_pixels[0][1]) for p in self.right_pixels]
         self.delta_idx_TB = [(p[0] - self.top_pixels[0][0], p[1] - self.top_pixels[0][1]) for p in self.top_pixels]
 
-        # left_ends = [
-        #     (self.shear.A[0] + delta_xl, self.shear.A[1] + delta_yl),
-        #     (self.shear.D[0] + delta_xl, self.shear.D[1] + delta_yl)]
-        # self.left_border = Coordinates((self.shear.A.x, self.shear.A.y), left_ends[0],
-        #                                left_ends[1], (self.shear.D.x, self.shear.D.y))
         self.left_border = Coordinates((self.shear.A.x, self.shear.A.y), self.top_pixels[self.border - 1],
                                        self.bottom_pixels[self.border - 1], (self.shear.D.x, self.shear.D.y))
 
@@ -165,76 +146,11 @@ class Tiling:
                                          self.tuple_sum(self.right_pixels[-self.bv], self.delta_idx_RL[self.border-1]),
                                          self.tuple_sum(self.left_pixels[-self.bv], self.delta_idx_RL[self.border-1]))
 
-        # RIGHT border
-        # delta_xr = int(- self.bo * math.cos(theta_lr))
-        # delta_yr = int(self.bo * math.sin(theta_lr))
-        # print("delta xr yr " + str((delta_xr, delta_yr)))
-        # right_starts = [
-        #     (self.shear.B[0] + delta_xr, self.shear.B[1] + delta_yr),
-        #     (self.shear.C[0] + delta_xr, self.shear.C[1] + delta_yr)]
-        # print(self.shear)
-        # print("-self.bo + self.border", -self.bo + self.border)
-        # print("delta xr yr "+str((delta_xr, delta_yr)))
-        # print("bo, border ", self.bo, self.border)
-        # delta_xr2 = delta_xr + delta_xl
-        # delta_yr2 = delta_yr + delta_yl
-        # self.delta_r = (delta_xl, delta_yl)
-        # # self.delta_l = (delta_xl, delta_yl)
-        # right_ends = [
-        #     (self.shear.B[0] + delta_xr2, self.shear.B[1] + delta_yr2),
-        #     (self.shear.C[0] + delta_xr2, self.shear.C[1] + delta_yr2)]
-        # self.right_border = Coordinates(right_starts[0], right_ends[0], right_ends[1], right_starts[1])
-        #
-        # right_endpoint = [
-        #     (self.shear.B[0] - delta_xr, self.shear.B[1] - delta_yr),
-        #     (self.shear.C[0] - delta_xr, self.shear.C[1] - delta_yr)]
-        # self.right_end = right_endpoint
-        # print("delta xr2 yr2", delta_xr2, delta_yr2)
-
-        # TOP border
-        # delta_xt = int(self.border * math.sin(theta_tb))
-        # delta_yt = int(self.border * math.cos(theta_tb))
-        # self.delta_t = (delta_xt, delta_yt)
-        # print("theta_tb", theta_tb)
-        # print("delta xt, yt", delta_xt, delta_yt)
-        # top_ends = [
-        #     (self.shear[0][0] + delta_xt, self.shear[0][1] + delta_yt),
-        #     (self.shear[1][0] + delta_xt, self.shear[1][1] + delta_yt)]
-        #
-        # self.top_border = Coordinates((self.shear.A.x, self.shear.A.y), (self.shear.B.x, self.shear.B.y), top_ends[1],
-        #                               top_ends[0])
-
-        # BOTTOM border
-        # delta_xb = int(-self.bv * math.sin(theta_tb))
-        # delta_yb = int(-self.bv * math.cos(theta_tb))
-        # print("delta xb, yb", delta_xb, delta_yb)
-        # bottom_starts = [
-        #     (self.shear.D[0] + delta_xb, self.shear.D[1] + delta_yb),
-        #     (self.shear.C[0] + delta_xb, self.shear.C[1] + delta_yb)]
-        #
-        # delta_xb2 = delta_xb + delta_xt
-        # delta_yb2 = delta_yb + delta_yt
-        # self.delta_b = (delta_xt, delta_yt)
-        # print("delta xb2, yb2", delta_xb2, delta_yb2)
-        # bottom_ends = [
-        #     (self.shear.C[0] + delta_xb2, self.shear.C[1] + delta_yb2),
-        #     (self.shear.D[0] + delta_xb2, self.shear.D[1] + delta_yb2)]
-        #
-        # self.bottom_border = Coordinates(bottom_starts[0], bottom_starts[1], bottom_ends[0], bottom_ends[1])
-
-        #
-        # bottom_endpoint = [
-        #     (self.shear.D[0] - delta_xb2, self.shear.D[1] - delta_yb2),
-        #     (self.shear.C[0] - delta_xb2, self.shear.C[1] - delta_yb2)
-        # ]
-        # self.bottom_end = bottom_endpoint
 
         print("self left" + str(self.left_border))
         print("self right" + str(self.right_border))
         print("self top" + str(self.top_border))
         print("self bottom" + str(self.bottom_border))
-        # print("right endside " + str(self.right_end))
-        # print("bottom endside " + str(self.bottom_end))
 
     def _get_masked_img(self, a, b, c, d):
         image = self.image
@@ -275,12 +191,6 @@ class Tiling:
         f = open(txt_path, "w")
         #TODO distingui caso rettangolo e parallelogramma
         print("bo e bv ", self.bo, self.bv)
-        # rr, cc = line(int(self.right_border.A.x), int(self.right_border.A.y),  # da start dx (A) alla fine area ricerca
-        #               int(self.right_end[0][0]), int(self.right_end[0][1]))
-        # t_right_pixels = list(zip(rr, cc))
-        # rr, cc = line(int(self.right_border.D.x), int(self.right_border.D.y),  # da start dx (D) alla fine area ricerca
-        #               int(self.right_end[1][0]), int(self.right_end[1][1]))
-        # b_right_pixels = list(zip(rr, cc))
 
         # ricerca orizzontale
         step = 0
@@ -288,50 +198,48 @@ class Tiling:
         # bordo sinistro partendo dalla coordinata 0 della selezione dell'utenete (fissato)
         left_border = self.selection.get_mat((self.left_border.A, self.left_border.B,
                                               self.left_border.C, self.left_border.D),
-                                             self.delta_idx_TB[:self.border], self.delta_idx_RL,
-                                             mss="left border ")
-        # f.write("#left" + str(self.left_border.start) + " " + str(self.left_border.end) + "\n")
+                                             self.delta_idx_TB[:self.border], self.delta_idx_RL)
+        # print("left.size ", left_border.size)
+
+        f.write("#left" + str(self.left_border.start) + " " + str(self.left_border.end) + "\n")
 
         start_time = time.time()
-        # print("numero pixel top right ", len(t_right_pixels))
-        # print("numero pixel bottom right ", len(b_right_pixels))
 
         tmp_right = Coordinates((self.right_border.A.x, self.right_border.A.y),
                                 (self.right_border.B.x, self.right_border.B.y),
                                 (self.right_border.C.x, self.right_border.C.y),
                                 (self.right_border.D.x, self.right_border.D.y))
+        # print("tmp_right dx ", tmp_right.A.x-tmp_right.B.x)
+        # print("left dx ", self.left_border.A.x-self.left_border.B.x)
 
+        # lf = Image.fromarray(left_border, mode='RGB')
+        # self.save_img(lf, 'LEFT----.png')
         #+++++++++++ fissato a sx, sposto il bordo di dx
-        # while step < 2 * self.bo and step < len(t_right_pixels):  # ricerca  nell'area tra -bo e +bo
         while step < 2 * self.bo:  # ricerca  nell'area tra -bo e +bo
-
-            # right_border = self.selection.get_mat((t_right_pixels[step],
-            #                                        (t_right_pixels[step][0] + self.delta_r[0], t_right_pixels[step][1] + self.delta_r[1]),
-            #                                        (b_right_pixels[step][0] + self.delta_r[0], b_right_pixels[step][1] + self.delta_r[1]),
-            #                                        b_right_pixels[step]))
             right = self.selection.get_mat((tmp_right.A, tmp_right.B,
                                             tmp_right.C, tmp_right.D),
-                                           self.delta_idx_TB[:self.border], self.delta_idx_RL,
-                                           mss="right in ciclo ")
-
+                                           self.delta_idx_TB[:self.border], self.delta_idx_RL)
             diff = self.normalize(right) - self.normalize(left_border)
             m_norm = sum(sum(sum(abs(diff)))) / right.size  # Manhattan norm
             if m_norm < min_diff_right[0]:
                 min_diff_right = (m_norm, step)
-                min_right_border = Coordinates(self.tuple_sum(self.right_border.A, self.delta_idx_TB[step]),
-                                                self.tuple_sum(self.right_border.B, self.delta_idx_TB[step + self.border - 1]),
-                                                self.tuple_sum(self.right_border.C, self.delta_idx_TB[step + self.border - 1]),
-                                                self.tuple_sum(self.right_border.D, self.delta_idx_TB[step]))
+                min_right_border = Coordinates(tmp_right.A.tuple, tmp_right.B.tuple, tmp_right.C.tuple, tmp_right.D.tuple)
 
             h_diff_values.append(m_norm)
             # print("step, diff, ", step, m_norm)
             step += 1
             tmp_right = Coordinates(self.tuple_sum(self.right_border.A, self.delta_idx_TB[step]),
-                                    self.tuple_sum(self.right_border.B, self.delta_idx_TB[step + self.border - 1]),
-                                    self.tuple_sum(self.right_border.C, self.delta_idx_TB[step + self.border - 1]),
+                                    self.tuple_sum(self.right_border.A, self.delta_idx_TB[step + self.border - 1]),
+                                    self.tuple_sum(self.right_border.D, self.delta_idx_TB[step + self.border - 1]),
                                     self.tuple_sum(self.right_border.D, self.delta_idx_TB[step]))
-            # f.write(str(step) + " " + str(r_start) + " " + str(r_end) + " " + str(m_norm) + "\n")
-            f.write(str(step) + " " + str(m_norm) + "\n")
+            f.write(str(step) + " " + str(tmp_right) + " " + str(m_norm) + "\n")
+
+            # rrrrr = self._get_masked_img(tmp_right.A, tmp_right.B,
+            #                             tmp_right.C, tmp_right.D)
+            # self.save_img(rrrrr, 'RIGHT_ '+str(step)+'.png')
+            # rt = Image.fromarray(right, mode='RGB')
+            # self.save_img(rt, 'RIGHT__ '+str(step)+'.png')
+
 
         print("Minimun (h) distanze between borders find at step " + str(min_diff_right[1]) + ": " + str(
             min_diff_right[0]))
@@ -340,70 +248,62 @@ class Tiling:
         # vertical search
         step = 0
         min_diff_bottom = (1, 0)  # tuple containing (min difference, step)
-        # estrazione pixel dx e sx (per ricerca verticale) lungo l'angolo della selezione
-        # rr, cc = line(int(self.bottom_border.A.x), int(self.bottom_border.A.y),
-        #               # da start dx (A) alla fine area ricerca
-        #               int(self.bottom_end[0][0]), int(self.bottom_end[0][1]))
-        # l_bottom_pixels = list(zip(rr, cc))
-        # rr, cc = line(int(self.bottom_border.B.x), int(self.bottom_border.B.y),
-        #               # da start dx (D) alla fine area ricerca
-        #               int(self.bottom_end[1][0]), int(self.bottom_end[1][1]))
-        # r_bottom_pixels = list(zip(rr, cc))
 
         # bordo top partendo dalla coordinata 0 della selezione dell'utenete
         top_border = self.selection.get_mat((self.top_border.A, self.top_border.B,
                                              self.top_border.C, self.top_border.D),
-                                             self.delta_idx_TB, self.delta_idx_RL[:self.border],
-                                             mss="top border ")
-
+                                             self.delta_idx_TB, self.delta_idx_RL[:self.border])
+        # tb = Image.fromarray(top_border, mode='RGB')
+        # self.save_img(tb, 'TOP______.png')
         f.write("\n\n#top" + str(self.top_border.start) + " " + str(self.top_border.end) + "\n")
 
-        # print("numero pixel left bottom ", len(l_bottom_pixels))
-        # print("numero pixel right bottom ", len(r_bottom_pixels))
-        # print("first last pixel left bottom ", l_bottom_pixels[0], l_bottom_pixels[-1])
-        # print("first last pixel right bottom ", r_bottom_pixels[0], r_bottom_pixels[-1])
         # +++++++++++ fissato top, sposto il bordo bottom
         tmp_bottom = Coordinates((self.bottom_border.A.x, self.bottom_border.A.y),
                                  (self.bottom_border.B.x, self.bottom_border.B.y),
                                  (self.bottom_border.C.x, self.bottom_border.C.y),
                                  (self.bottom_border.D.x, self.bottom_border.D.y))
-        # while step < 2 * self.bv and step < len(l_bottom_pixels) - self.border:  # ricerca  nell'area tra -bo e +bo
+
         while step < 2 * self.bv:  # ricerca  nell'area tra -bo e +bo
-            # b_start = (self.bottom_border.start.x, self.bottom_border.start.y + step)
-            # b_end = (self.bottom_border.end.x, self.bottom_border.end.y + step)
-            # print("step+self.border-1 ", step + self.border - 1)
-            # bottom_border = self.selection.get_mat((l_bottom_pixels[step],
-            #                                         r_bottom_pixels[step],
-            #                                         r_bottom_pixels[step + self.border - 1],
-            #                                         l_bottom_pixels[step + self.border - 1]
-            #                                         ))
+
             bottom = self.selection.get_mat((tmp_bottom.A, tmp_bottom.B,
                                              tmp_bottom.C, tmp_bottom.D),
                                             self.delta_idx_TB, self.delta_idx_RL[:self.border])
-            # print("+++++++++ ", tmp_bottom.A, tmp_bottom.B, tmp_bottom.C, tmp_bottom.D)
 
             # TODO  ricontrolla normalize
             diff = self.normalize(bottom) - self.normalize(top_border)
             m_norm = sum(sum(sum(abs(diff)))) / bottom.size  # Manhattan norm
             if m_norm < min_diff_bottom[0]:
                 min_diff_bottom = (m_norm, step)
-                min_bottom_border = Coordinates(self.tuple_sum(self.bottom_border.A, self.delta_idx_RL[step]),
-                                                 self.tuple_sum(self.bottom_border.B, self.delta_idx_RL[step]),
-                                                 self.tuple_sum(self.bottom_border.C, self.delta_idx_RL[step + self.border - 1]),
-                                                 self.tuple_sum(self.bottom_border.D, self.delta_idx_RL[step + self.border - 1]))
+                min_bottom_border = Coordinates(tmp_bottom.A.tuple, tmp_bottom.B.tuple,
+                                                tmp_bottom.C.tuple, tmp_bottom.D.tuple)
             v_diff_values.append(m_norm)
             step += 1
             tmp_bottom = Coordinates(self.tuple_sum(self.bottom_border.A, self.delta_idx_RL[step]),
                                      self.tuple_sum(self.bottom_border.B, self.delta_idx_RL[step]),
-                                     self.tuple_sum(self.bottom_border.C, self.delta_idx_RL[step + self.border - 1]),
-                                     self.tuple_sum(self.bottom_border.D, self.delta_idx_RL[step + self.border - 1]))
+                                     self.tuple_sum(self.bottom_border.B, self.delta_idx_RL[step + self.border - 1]),
+                                     self.tuple_sum(self.bottom_border.A, self.delta_idx_RL[step + self.border - 1]))
 
-            f.write(str(step) + " " + str(self.bottom_border.start) + " " + str(self.bottom_border.end) + " " + str(m_norm) + "\n")
+            f.write(str(step) + " " + str(tmp_bottom) + " " + str(m_norm) + "\n")
+            # bt = Image.fromarray(bottom, mode='RGB')
+            # self.save_img(bt, 'BOTTOM__ '+str(step)+'.png')
+
 
         end_time = time.time()
 
         print("Minimun (v) distanze between borders find at step " + str(min_diff_bottom[1]) + ": " + str(
             min_diff_bottom[0]))
+        # print("bottom", bottom)
+        # print("bottom shape", bottom.shape)
+        # rrrrr = self._get_masked_img(tmp_bottom.A, tmp_bottom.B,
+                                     # tmp_bottom.C, tmp_bottom.D)
+        # self.save_img(rrrrr, 'bbbbbb.png')
+        # print("delta rl ", self.delta_idx_RL)
+        # print("delta tb ", self.delta_idx_TB)
+
+        self.selection.get_mat((tmp_bottom.A, tmp_bottom.B,
+                                         tmp_bottom.C, tmp_bottom.D),
+                                        self.delta_idx_TB, self.delta_idx_RL[:self.border], mss="print")
+
 
         f.write("\n\n tot time: " + str(end_time - start_time) + " sec\n")
         #++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -452,6 +352,14 @@ class Tiling:
                                               self.line_intersection((p1, p2), (p3, p4)),
                                               self.bottom_border.A)
             self.save_img(module_img, 'module_shear.png')
+
+            rrrrr = self._get_masked_img(self.left_border.A, self.left_border.B,
+                                        self.left_border.C, self.left_border.D)
+            self.save_img(rrrrr, 'LEFT.png')
+
+            llll = self._get_masked_img(self.right_border.A, self.right_border.B,
+                                        self.right_border.C, self.right_border.D)
+            self.save_img(llll, 'RIGHT.png')
             #TODO riscrivi per togliere ripetizione
 
         self.plot(h_diff_values, self.bo, file_name="h_plot.png")
