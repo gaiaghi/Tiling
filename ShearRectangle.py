@@ -31,6 +31,8 @@ class ShearRectangle(SelectionObject):
         self.moving_start = None
         self.selected = None
         self.direction = 0
+        self.mat = None
+        self.mat_index = None
 
         self.coordinates = Coordinates((self.start.x, self.start.y), (self.end.x, self.start.y),
                                        (self.start.x, self.end.y), (self.end.x, self.end.y))
@@ -157,7 +159,7 @@ class ShearRectangle(SelectionObject):
             self.canvas.coords(index2, bx, by, x2, y2)
             # self.coordinates = ((ax, ay), (bx, by), (x2, y2), (x1, y1))
             self._update_coordinates()
-
+            print(self.canvas.coords(element), self.canvas.coords(index1), self.canvas.coords(index2))
             self._show()
 
     def quit(self, event):
@@ -232,18 +234,17 @@ class ShearRectangle(SelectionObject):
         for i in range(r):
             for j in range(1, c):
                 mat_index[i][j] = tuple(map(sum, zip(mat_index[i][0], deltax[j])))
-        if mss is not None:
-            print("mat_index")
-            print(mat_index)
+        self.mat_index = mat_index
         return mat_index
 
     def get_mat(self, coord, deltax, deltay, mss=None):
         idx = self.matrix(coord[0], deltax, deltay, mss)
         og_img = self.img.convert('RGB')
         og_img = np.array(og_img)
-        mat = np.zeros((idx.shape[0], idx.shape[1], 3), dtype=np.uint8)
+        mat = np.zeros((idx.shape[0], idx.shape[1], 3), dtype=np.uint16)
         for r in range(0, idx.shape[0]):
             for c in range(0, idx.shape[1]):
                 i = idx[r, c]
                 mat[r][c] = og_img[int(i[1])][int(i[0])]
+        self.mat = mat
         return mat
