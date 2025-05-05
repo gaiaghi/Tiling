@@ -159,6 +159,8 @@ class CanvasImage:
             tmp_img = Image.open(self.path)
         else:
             tmp_img = self.imgpath
+        if tmp_img.mode.startswith("I"):
+            tmp_img = tmp_img.convert("L") #TODO non funziona la conversione
         self.__pyramid = [self.smaller()] if self.__huge else [tmp_img]
         # Set ratio coefficient for image pyramid
         self.__ratio = max(self.imwidth, self.imheight) / self.__huge_size if self.__huge else 1.0

@@ -237,11 +237,15 @@ class ShearRectangle(SelectionObject):
         self.mat_index = mat_index
         return mat_index
 
-    def get_mat(self, coord, deltax, deltay, mss=None):
+    def get_mat(self, img, coord, deltax, deltay, mss=None):
         idx = self.matrix(coord[0], deltax, deltay, mss)
-        og_img = self.img.convert('RGB')
-        og_img = np.array(og_img)
-        mat = np.zeros((idx.shape[0], idx.shape[1], 3), dtype=np.uint16)
+        # og_img = self.img.convert('RGB')
+        # og_img = np.array(og_img)
+        # og_img = np.array(self.img)
+        og_img = np.array(img)
+        if og_img.shape[-1] == 3:
+            og_img = np.dstack((og_img, np.ones((og_img.shape[0], og_img.shape[1]))))
+        mat = np.zeros((idx.shape[0], idx.shape[1], og_img.shape[-1]), dtype=np.uint16)
         for r in range(0, idx.shape[0]):
             for c in range(0, idx.shape[1]):
                 i = idx[r, c]

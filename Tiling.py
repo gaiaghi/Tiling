@@ -30,15 +30,16 @@ BACKGROUND = '#292929'
 
 class Tiling:
     #TODO
-    # fai prove su mappe diverse, temporizza per il report
+    # temporizza
     # prova a parallelizzare calcolo differenze
-    # ricerca su tutte le mappe
 
     # def __init__(self, master, image: Image.Image, selection: SelectionObject, border=5, search_area=0.15):
     def __init__(self, master, img: Image.Image, start: TwoDPoint, end: TwoDPoint, selection: Selection,
                  shear: Coordinates = None, border=10,
-                 search_area=0.15,
+                 search_area=0.35,
                  maps=None, start_tiling=True):
+
+        # self.percorso = percorso
         self.selection = selection
         self.tiled = None
         self.master = master
@@ -49,15 +50,43 @@ class Tiling:
         # start and end of selected area
         self.start = start
         self.end = end
-        self.shear = Coordinates(shear[0], shear[1], shear[2], shear[3])  # coordinates of sheared rect
-        self.maps = maps  # all image maps
+        if shear is None:
+            self.shear = Coordinates((start.x, start.y), (end.x, start.y), (start.x, end.y), (end.x, end.y))
+        else:
+            self.shear = Coordinates(shear[0], shear[1], shear[2], shear[3])  # coordinates of sheared rect
+
+        self.maps_path = maps  # all image maps
         # width and height of the user-selected area
-        self.width = self.end.x - self.start.x
-        self.height = self.end.y - self.start.y
+        self.start.x = 203 #TODO rimuovi
+        self.start.y = 214
+        self.end.x = 430
+        self.end.y = 659
+        self.shear.A.x = 203
+        self.shear.A.y = 214
+        self.shear.B.x = 430
+        self.shear.B.y = 214
+        self.shear.C.x = 430
+        self.shear.C.y = 659
+        self.shear.D.x = 203
+        self.shear.D.y = 659
+        # self.width = self.end.x - self.start.x
+        # self.height = self.end.y - self.start.y
+        self.width = abs(self.shear.B.x - self.shear.A.x)
+        self.height = abs(self.shear.D.y - self.shear.A.y)
         # vertical search area (size)
         self.bv = int(self.height * self.search_ratio)
         # horizontal search area (size)
         self.bo = int(self.width * self.search_ratio)
+
+        if self.maps_path is not None:
+            self.maps = np.array(Image.open(self.maps_path[0]))
+            for m in self.maps_path[1:]:
+                self.maps = np.dstack((self.maps, np.array(Image.open(m))))
+                # self.maps.append(Image.open(m))
+            print("shape maps ", self.maps.shape)
+        else:
+            self.maps = np.array(self.image)
+
 
         if self.bv < 1:
             self.bv = 1
@@ -65,7 +94,7 @@ class Tiling:
             self.bo = 1
         print("bo, bv ", self.bo, self.bv)
 
-        # check if image overflow
+        # check if image overflow #TODO ricontrolla per shear che forse non va bene perchè start potrebbe non essere il punto più a sx
         if (self.end.x + self.bo) > self.image.width:
             start_h = (self.image.width - 2 * self.bo - self.border, self.start.y)
             end_h = (self.image.width - 2 * self.bo, self.end.y)
@@ -119,7 +148,6 @@ class Tiling:
         # self.cropped = np.array(matrix)
 
     def _shear_setup(self, start_h, end_h, start_v, end_v):
-
         self.left_pixels = self.get_line(self.shear.A, self.shear.D)
         self.right_pixels = self.get_line(self.shear.B, self.shear.C)
         self.top_pixels = self.get_line(self.shear.A, self.shear.B)
@@ -155,12 +183,11 @@ class Tiling:
         print("self bottom" + str(self.bottom_border))
 
     # def _get_masked_img(self, a, b, c, d):
-    def _get_masked_img(self, a, b, c, d, px=None):
+    def _get_masked_img(self, image:Image.Image, a, b, c, d, px=None):
         print("a,b,c,d -> ", a,b,c,d)
-        image = self.image
+        # image = self.image
         background = Image.new("RGBA", image.size, (0, 0, 0, 0))
         mask = Image.new("RGBA", image.size, 0)
-        #TODO ricontrolla qui
         draw = ImageDraw.Draw(mask)
         if px is None:
             draw.polygon(((a[0], a[1]), (b[0], b[1]),
@@ -175,14 +202,14 @@ class Tiling:
         maxy = max(a[1], b[1], c[1], d[1])
         new_img = Image.composite(image, background, mask)
 
-        if px is not None: #TODO solo per testing
-            testimg = copy(self.image)
-            testdr = ImageDraw.Draw(testimg)
-            testdr.polygon(px)
-            testimg.save("test.png")
-            new_img.save("composite.png")
-            # new_img = new_img.crop((minx, miny, maxx+1, maxy+1))
-            mask.save("mask.png")
+        # if px is not None: # solo per testing
+        #     testimg = copy(self.image)
+        #     testdr = ImageDraw.Draw(testimg)
+        #     testdr.polygon(px)
+        #     testimg.save("test.png")
+        #     new_img.save("composite.png")
+        #     # new_img = new_img.crop((minx, miny, maxx+1, maxy+1))
+        #     mask.save("mask.png")
 
         # selection = np.array(new_img)
         # extract = []
@@ -200,8 +227,9 @@ class Tiling:
 
     def start_search(self):
         # TODO togli tutte le stampe
-        og_img = self.image.convert('RGB')
-        og_img = np.array(og_img)
+        # og_img = self.image.convert('RGB')
+        # og_img = np.array(og_img)
+        og_img = np.array(self.image)
         h_diff_values = []
         v_diff_values = []
         txt_path = os.path.join(OUT_DIR, "search_info.txt")
@@ -212,7 +240,7 @@ class Tiling:
         step = 0
         min_diff_right = (1, 0)  # tuple containing (min difference, step)
         # bordo sinistro partendo dalla coordinata 0 della selezione dell'utenete (fissato)
-        left_border = self.selection.get_mat((self.left_border.A, self.left_border.B,
+        left_border = self.selection.get_mat(self.maps, (self.left_border.A, self.left_border.B,
                                               self.left_border.C, self.left_border.D),
                                              self.delta_idx_TB[:self.border], self.delta_idx_RL)
 
@@ -226,12 +254,19 @@ class Tiling:
                                 (self.right_border.D.x, self.right_border.D.y))
 
         #+++++++++++ fissato a sx, sposto il bordo di dx
-        while step < 2 * self.bo and tmp_right.B.x < self.image.width and tmp_right.C.x < self.image.width:  # ricerca  nell'area tra -bo e +bo
-            right = self.selection.get_mat((tmp_right.A, tmp_right.B,
+        while step < 2 * self.bo and tmp_right.B.x < self.image.width and tmp_right.C.x < self.image.width:  # ricerca nell'area tra -bo e +bo
+            # if self.maps_path is not None:
+            #     for m in self.maps:
+            #         rights.append(self.selection.get_mat((tmp_right.A, tmp_right.B,
+            #                                 tmp_right.C, tmp_right.D),
+            #                                self.delta_idx_TB[:self.border], self.delta_idx_RL))
+            #     rights = np.asarray(rights)
+            right = self.selection.get_mat(self.maps, (tmp_right.A, tmp_right.B,
                                             tmp_right.C, tmp_right.D),
                                            self.delta_idx_TB[:self.border], self.delta_idx_RL)
-            diff = self.normalize(right) - self.normalize(left_border)
-            m_norm = sum(sum(sum(abs(diff)))) / right.size  # Manhattan norm
+            # diff = self.normalize(right) - self.normalize(left_border)
+            # m_norm = sum(sum(sum(abs(diff)))) / right.size
+            m_norm = math.sqrt(np.sum(np.power(right-left_border, 2))) / right.size
             if m_norm < min_diff_right[0]:
                 min_diff_right = (m_norm, step)
                 min_right_border = Coordinates(tmp_right.A.tuple, tmp_right.B.tuple, tmp_right.C.tuple,
@@ -254,7 +289,7 @@ class Tiling:
         min_diff_bottom = (1, 0)  # tuple containing (min difference, step)
 
         # bordo top partendo dalla coordinata 0 della selezione dell'utenete
-        top_border = self.selection.get_mat((self.top_border.A, self.top_border.B,
+        top_border = self.selection.get_mat(self.maps, (self.top_border.A, self.top_border.B,
                                              self.top_border.C, self.top_border.D),
                                             self.delta_idx_TB, self.delta_idx_RL[:self.border])
 
@@ -269,12 +304,13 @@ class Tiling:
 
         while step < 2 * self.bv and tmp_right.C.y < self.image.width and tmp_right.D.y < self.image.height:  # ricerca  nell'area tra -bo e +bo
             # print("tmp bottom in search ", tmp_bottom.A, tmp_bottom.B, tmp_bottom.C, tmp_bottom.D)
-            bottom = self.selection.get_mat((tmp_bottom.A, tmp_bottom.B,
+            bottom = self.selection.get_mat(self.maps, (tmp_bottom.A, tmp_bottom.B,
                                              tmp_bottom.C, tmp_bottom.D),
                                             self.delta_idx_TB, self.delta_idx_RL[:self.border])
-            # TODO  ricontrolla normalize
-            diff = self.normalize(bottom) - self.normalize(top_border)
-            m_norm = sum(sum(sum(abs(diff)))) / bottom.size  # Manhattan norm
+
+            # diff = self.normalize(bottom) - self.normalize(top_border)
+            # m_norm = sum(sum(sum(abs(diff)))) / bottom.size
+            m_norm = math.sqrt(np.sum(np.power(bottom-top_border, 2))) / bottom.size
             if m_norm < min_diff_bottom[0]:
                 min_diff_bottom = (m_norm, step)
                 min_bottom_border = Coordinates(tmp_bottom.A.tuple, tmp_bottom.B.tuple,
@@ -332,8 +368,8 @@ class Tiling:
             imgs = Image.fromarray(search_area, mode='RGB')
             self.save_img(imgs, 'search_area.png')
 
-            if self.maps is not None:
-                self.crop_maps(mod_coord)
+            if self.maps_path is not None:
+                self.crop_maps(mod_coord) #TODO modifica qui (togli questa funzione?)
         else:
             # p1 = (self.right_border.A.x, self.right_border.A.y)
             # p2 = (self.right_border.D.x, self.right_border.D.y)
@@ -341,6 +377,10 @@ class Tiling:
             # p4 = (self.bottom_border.B.x, self.bottom_border.B.y)
 
             #+1 per includere una riga di sovrapposizione
+            print("top pixels s e ", self.top_pixels[0], self.top_pixels[-1])
+            print("bottom pixels s e ", self.bottom_pixels[0], self.bottom_pixels[-1])
+            print("left pixels s e ", self.left_pixels[0], self.left_pixels[-1])
+            print("right pixels s e ", self.right_pixels[0], self.right_pixels[-1])
             tpx = self.top_pixels[:-(self.bo - min_diff_right[1])+1] if min_diff_right[1]+1 < self.bo else self.top_pixels
             if min_diff_right[1]+1 >= self.bo:
                 p = self.top_pixels[-1]
@@ -351,7 +391,7 @@ class Tiling:
             if min_diff_bottom[1]+1 >= self.bv:
                 p = self.left_pixels[-1]
                 tail = [(p[0] + delta[0], p[1] + delta[1]) for delta in
-                        self.delta_idx_RL[:(min_diff_bottom[1] - self.bo+1)]]
+                        self.delta_idx_RL[:(min_diff_bottom[1] - self.bv+1)]]
                 lpx = lpx + tail
 
             delta_lpx = [(p[0] - lpx[0][0], p[1] - lpx[0][1]) for p in lpx]
@@ -359,20 +399,50 @@ class Tiling:
             rpx = [(tpx[-1][0] + delta[0], tpx[-1][1] + delta[1]) for delta in delta_lpx]
 
             bpx = [(lpx[-1][0] + delta[0], lpx[-1][1] + delta[1]) for delta in delta_tpx]
-            module_img = self._get_masked_img(tpx[0], rpx[0],
+            module_img = self._get_masked_img(self.image, tpx[0], rpx[0],
                                               # self.line_intersection((p1, p2), (p3, p4)),
                                               rpx[-1], lpx[-1],
                                               tpx + rpx + bpx[::-1] + lpx[::-1])
-            self.save_img(module_img, 'module_shear.png')
 
-            rrrrr = self._get_masked_img(self.left_border.A, self.left_border.B,
-                                         self.left_border.C, self.left_border.D)
-            self.save_img(rrrrr, 'LEFT.png')
+            if self.maps_path is not None:
+                for f in self.maps_path:
+                    m = self._get_masked_img(Image.open(f), tpx[0], rpx[0],
+                                              rpx[-1], lpx[-1],
+                                              tpx + rpx + bpx[::-1] + lpx[::-1])
+                    img_name = os.path.basename(f)
+                    name = os.path.splitext(img_name)[0] + "_Module" + os.path.splitext(img_name)[1]
+                    self.save_img(m, name)
+            else:
+                self.save_img(module_img, 'module_shear.png')
 
-            llll = self._get_masked_img(self.right_border.A, self.right_border.B,
-                                        self.right_border.C, self.right_border.D)
-            self.save_img(llll, 'RIGHT.png')
-            #TODO riscrivi per togliere ripetizione
+                # # TODO INIZIO
+                # file_path = os.path.abspath(self.percorso)
+                # if file_path:
+                #     folder_path = os.path.dirname(file_path)
+                #     # if os.path.isdir(folder_path):
+                #     #     folder_files = [join(folder_path, f) for f in listdir(folder_path) if isfile(join(folder_path, f))]
+                #     if os.path.isdir(folder_path):
+                #         folder_files = [join(folder_path, f) for f in listdir(folder_path) if
+                #                         isfile(join(folder_path, f))]
+                #         folder_files = [f for f in folder_files if
+                #                         (f.endswith((".jpg", ".png", ".bmp", ".ico", ".jpeg", ".gif")))]
+                #     for f in folder_files:
+                #         m = self._get_masked_img(Image.open(f), tpx[0], rpx[0],
+                #                                  rpx[-1], lpx[-1],
+                #                                  tpx + rpx + bpx[::-1] + lpx[::-1])
+                #         img_name = os.path.basename(f)
+                #         name = os.path.splitext(img_name)[0] + "_Module_s" + os.path.splitext(img_name)[1]
+                #         self.save_img(m, name)
+                #         #TODO FINE
+
+            # rrrrr = self._get_masked_img(self.left_border.A, self.left_border.B,
+            #                              self.left_border.C, self.left_border.D)
+            # self.save_img(rrrrr, 'LEFT.png')
+            #
+            # llll = self._get_masked_img(self.right_border.A, self.right_border.B,
+            #                             self.right_border.C, self.right_border.D)
+            # self.save_img(llll, 'RIGHT.png')
+
 
         self.plot(h_diff_values, self.bo, file_name="h_plot.png")
         self.plot(v_diff_values, self.bv, file_name="v_plot.png")
@@ -381,12 +451,10 @@ class Tiling:
     #     return img if img.shape[-1] == 3 else img[:, :, 1:]
 
     def crop_maps(self, coords):
-        for f in self.maps:
+        for f in self.maps_path:
             img = Image.open(f)
             if img.width == self.image.width and img.height == self.image.height:
                 img = img.crop(coords)
-                # self.tiled = self.tile_image(imgm)
-                # self.save_img(self.tiled, file_name="tiled.png")
                 img_name = os.path.basename(f)
                 name = os.path.splitext(img_name)[0] + "_Module" + os.path.splitext(img_name)[1]
                 self.save_img(img, file_name=name)
@@ -446,9 +514,9 @@ class Tiling:
 
         return tiled
 
-    def normalize(self, arr):
-        normalized = (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
-        return normalized
+    # def normalize(self, arr):
+    #     normalized = (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
+    #     return normalized
 
     def save_img(self, img: Image.Image, file_name="image.png"):
         ts = TSTAMP
@@ -557,6 +625,7 @@ class Application(tk.Frame):
         file_path = filedialog.askopenfilename(title="Open Image...",
                                                filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif *.bmp *.ico")])
         if file_path:
+            # self.percorso = file_path
             self.tiling = None
             self.canvas.destroy()
             self.canvas = CanvasImage(self.master, path=file_path)  # create widget
@@ -572,6 +641,7 @@ class Application(tk.Frame):
         #     self.canvas.selection_obj.height = self.canvas.pht_img.height()
         #     self.canvas.selection_obj.width = self.canvas.pht_img.width()
         #     self.canvas.selection_obj.clear()
+        self.folder_maps = None
 
     def load_folder(self, event=None):
         """ Open single image to tile in a folder containing all texture maps.
@@ -585,14 +655,18 @@ class Application(tk.Frame):
             #     folder_files = [join(folder_path, f) for f in listdir(folder_path) if isfile(join(folder_path, f))]
             if os.path.isdir(folder_path):
                 folder_files = [join(folder_path, f) for f in listdir(folder_path) if isfile(join(folder_path, f))]
-                maps = [f for f in folder_files if not os.path.basename(file_path) in f]
+                folder_files = [f for f in folder_files if (f.endswith((".jpg", ".png", ".bmp", ".ico", ".jpeg", ".gif")))]
+                print("folder files ", folder_files)
+                # maps = [f for f in folder_files if not os.path.basename(file_path) in f]
+                # print(maps)
+                # self.percorso=file_path
             else:
                 sys.exit("Cannot open the provided directory.")
 
             self.canvas.destroy()
             self.canvas = CanvasImage(self.master, path=file_path)  # create widget
             self.canvas.grid(row=0, column=0)
-            self.folder_maps = maps
+            self.folder_maps = folder_files
             # self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
             #                      self.canvas.selection_obj.end, folder=folder_path, start_tiling=False)
         else:

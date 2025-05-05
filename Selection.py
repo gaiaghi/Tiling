@@ -28,10 +28,10 @@ class TwoDPoint(object):
 
 class Coordinates(object):
     def __init__(self, a: tuple[int, int], b: tuple[int, int], c: tuple[int, int], d: tuple[int, int]):
-        self.A = TwoDPoint(*a)
-        self.B = TwoDPoint(*b)
-        self.C = TwoDPoint(*c)
-        self.D = TwoDPoint(*d)
+        self.A = TwoDPoint(a[0], a[1])
+        self.B = TwoDPoint(b[0], b[1])
+        self.C = TwoDPoint(c[0], c[1])
+        self.D = TwoDPoint(d[0], d[1])
         self.start = self.A
         self.end = self.C
 
