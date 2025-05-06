@@ -53,8 +53,10 @@ class RectangleObject(SelectionObject):  #TODO cambia nome (rectangle tipo)
         output = np.asarray(list(itertools.product(x_coords, y_coords)))
         return output.reshape((w, h, 2))
 
-    def get_mat(self, coord, deltax, deltay, mss=None):
-        img = self.img.crop((coord[0].x, coord[0].y, coord[1].x, coord[1].y))
-        mat = np.array(img.convert('RGB'))
-
-        return mat
+    def get_mat(self, img, coord, deltax, deltay, mss=None):
+        # img = self.img.crop((coord[0].x, coord[0].y, coord[1].x, coord[1].y))
+        cropped = np.array(img[coord[0].y: coord[2].y + 1, coord[0].x: coord[2].x + 1, :], dtype=np.uint32)
+        # mat = np.array(cropped.convert('RGBA'))
+        if cropped.shape[-1] == 3:
+            cropped = np.dstack((cropped, np.ones((cropped.shape[0], cropped.shape[1]))))
+        return cropped

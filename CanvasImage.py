@@ -8,6 +8,7 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 
+from Rectangle import RectangleObject
 from ShearRectangle import ShearRectangle
 
 SELECT_OPTS = dict(dash=(2, 2), stipple='gray25', fill='white',
@@ -91,7 +92,7 @@ class AutoScrollbar(ttk.Scrollbar):
 class CanvasImage:
     """ Display and zoom image """
 
-    def __init__(self, placeholder, path=None, img: Image.Image = None, coords=None):
+    def __init__(self, placeholder, path=None, img: Image.Image = None, coords=None, selection_mode = 2):
         """ Initialize the ImageFrame """
         if path is None and img is None:
             sys.exit('Cannot open image')
@@ -101,6 +102,7 @@ class CanvasImage:
         self.__previous_state = 0  # previous state of the keyboard
         self.path = path  # path to the image, should be public for outer classes
         self.imgpath = img
+        self.selection_mode = selection_mode
         # Create ImageFrame in placeholder widget
         self.__imframe = ttk.Frame(placeholder)  # placeholder of the ImageFrame object
         # Vertical and horizontal scrollbars for canvas
@@ -193,10 +195,12 @@ class CanvasImage:
         self.canvas.orig = self.canvas.pht_img  # keep reference of original image
 
         # Create selection object to show current selection boundaries.
-        #TODO creazione classe in base al tipo di selezione che si vuole fare
-        
-        # self.selection_obj = SelectionObject(self.canvas, self.container, self.imwidth, self.imheight, SELECT_OPTS, coords=coords)
-        self.selection_obj = ShearRectangle(self.canvas, self.container, self.imwidth, self.imheight, img, coords=coords)
+        if self.selection_mode == 1:
+            self.selection_obj = RectangleObject(self.canvas, self.container, self.imwidth, self.imheight, img,
+                                                 SELECT_OPTS, coords=coords)
+        else:
+            self.selection_obj = ShearRectangle(self.canvas, self.container, self.imwidth, self.imheight, img,
+                                                coords=coords)
 
         # Callback function to update it given two points of its diagonal.
         def on_drag(start, end, **kwarg):  # Must accept these arguments.

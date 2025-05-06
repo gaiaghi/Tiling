@@ -3,7 +3,7 @@ import math
 import numpy as np
 from numpy.linalg import norm
 from Selection import SelectionObject
-from Selection import TwoDPoint, Coordinates
+from utils import TwoDPoint, Coordinates
 from skimage.draw import line
 
 # SELECT_OPTS = dict(dash=(2, 2),  fill='white')
@@ -34,8 +34,6 @@ class ShearRectangle(SelectionObject):
         self.mat = None
         self.mat_index = None
 
-        self.coordinates = Coordinates((self.start.x, self.start.y), (self.end.x, self.start.y),
-                                       (self.start.x, self.end.y), (self.end.x, self.end.y))
 
         # Options for areas outside rectanglar selection.
         select_opts1 = self.select_opts.copy()  # Avoid modifying passed argument.
@@ -245,7 +243,7 @@ class ShearRectangle(SelectionObject):
         og_img = np.array(img)
         if og_img.shape[-1] == 3:
             og_img = np.dstack((og_img, np.ones((og_img.shape[0], og_img.shape[1]))))
-        mat = np.zeros((idx.shape[0], idx.shape[1], og_img.shape[-1]), dtype=np.uint16)
+        mat = np.zeros((idx.shape[0], idx.shape[1], og_img.shape[-1]), dtype=np.uint32)
         for r in range(0, idx.shape[0]):
             for c in range(0, idx.shape[1]):
                 i = idx[r, c]
