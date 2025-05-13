@@ -1,6 +1,9 @@
 import math
 import tkinter as tk
 from abc import abstractmethod
+
+from PIL import Image
+
 from utils import TwoDPoint, Coordinates
 
 
@@ -90,6 +93,8 @@ class SelectionObject:
         up_coord = (*self._coord_mapping(imin_x, imin_y, box_img_int),
                     *self._coord_mapping(imax_x, imax_y, box_img_int))
         print("COORD ---- " + str(up_coord))
+        self.coordinates = ((up_coord[0], up_coord[1]), (up_coord[2], up_coord[1]),
+                            (up_coord[2], up_coord[3]), (up_coord[0], up_coord[3]))
 
         self.start = TwoDPoint(up_coord[0], up_coord[1])
         self.end = TwoDPoint(up_coord[2], up_coord[3])
@@ -111,4 +116,8 @@ class SelectionObject:
 
     @abstractmethod
     def get_mat(self, img, coord: tuple[TwoDPoint, ...], deltax, deltay, mss= None):
+        pass
+
+    @abstractmethod
+    def tile_image(self, tile: Image.Image, coords=None, xrepeat=3, yrepeat=3):
         pass

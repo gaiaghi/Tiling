@@ -1,7 +1,7 @@
 import itertools
 import tkinter as tk
-
 import numpy as np
+from PIL import Image
 
 from Selection import SelectionObject
 
@@ -60,3 +60,17 @@ class RectangleObject(SelectionObject):  #TODO cambia nome (rectangle tipo)
         if cropped.shape[-1] == 3:
             cropped = np.dstack((cropped, np.ones((cropped.shape[0], cropped.shape[1]))))
         return cropped
+
+
+    def tile_image(self, tile: Image, coords=None, xrepeat=3, yrepeat=3):
+        og_w = tile.size[0]*xrepeat
+        og_h = tile.size[1]*yrepeat
+        tile_w, tile_h = tile.size
+
+        tiled = Image.new('RGBA', (xrepeat * tile_w, yrepeat * tile_h))
+
+        for i in range(0, xrepeat * tile_w, tile_w):
+            for j in range(0, yrepeat * tile_h, tile_h):
+                tiled.paste(tile, (i, j))
+
+        return tiled

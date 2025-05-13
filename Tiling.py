@@ -12,8 +12,7 @@ import numpy as np
 from tkinter import filedialog
 from tkinter import messagebox
 import matplotlib.pyplot as plt
-from matplotlib.path import Path
-from PIL import Image, ImageDraw, ImageTransform
+from PIL import Image, ImageDraw
 from datetime import datetime
 
 from skimage.draw import line
@@ -21,7 +20,6 @@ from skimage.draw import line
 import Selection
 from CanvasImage import CanvasImage
 from utils import Coordinates, TwoDPoint
-from Rectangle import RectangleObject
 
 OUT_DIR = './out/'
 WIDTH, HEIGHT = 900, 900
@@ -36,10 +34,11 @@ class Tiling:
     # def __init__(self, master, image: Image.Image, selection: SelectionObject, border=5, search_area=0.15):
     def __init__(self, img: Image.Image, start: TwoDPoint, end: TwoDPoint, selection: Selection,
                  shear: Coordinates = None, border=10,
-                 search_area=0.35,
-                 maps=None, start_tiling=True, filename=""):
+                 search_area=0.25,
+                 maps=None, weights=None, start_tiling=True, filename=""):
 
         # self.percorso = percorso
+        self.weight_file = weights
         self.filename = filename
         self.selection = selection
         self.tiled = None
@@ -58,18 +57,18 @@ class Tiling:
 
         self.maps_path = maps  # all image maps
         # width and height of the user-selected area
-        self.start.x = 203  #TODO rimuovi
-        self.start.y = 214
-        self.end.x = 430
-        self.end.y = 659
-        self.shear.A.x = 203
-        self.shear.A.y = 214
-        self.shear.B.x = 430
-        self.shear.B.y = 214
-        self.shear.C.x = 430
-        self.shear.C.y = 659
-        self.shear.D.x = 203
-        self.shear.D.y = 659
+        # self.start.x = 203  #TODO rimuovi
+        # self.start.y = 214
+        # self.end.x = 430
+        # self.end.y = 659
+        # self.shear.A.x = 203
+        # self.shear.A.y = 214
+        # self.shear.B.x = 430
+        # self.shear.B.y = 214
+        # self.shear.C.x = 430
+        # self.shear.C.y = 659
+        # self.shear.D.x = 203
+        # self.shear.D.y = 659
         self.delta_idx_RL = None
         self.delta_idx_TB = None
         # self.width = self.end.x - self.start.x
@@ -82,10 +81,18 @@ class Tiling:
         self.bo = int(self.width * self.search_ratio)
 
         if self.maps_path is not None:
-            self.maps = np.array(Image.open(self.maps_path[0]))
-            for m in self.maps_path[1:]:
-                self.maps = np.dstack((self.maps, np.array(Image.open(m))))
-                # self.maps.append(Image.open(m))
+            with open(self.weight_file) as f:
+                txt = f.read()
+                weights = list(map(int, txt.split(";")))
+            if len(weights) != len(self.maps_path):
+                self.weights = np.ones(len(self.maps_path))
+
+            self.maps = np.array(Image.open(self.maps_path[0] * weights[0]))
+            for i in range(1, len(self.maps_path)):
+                m = self.maps_path[i]
+                self.maps = np.dstack((self.maps, np.array(Image.open(m)) * math.sqrt(weights[i])))
+            # for m in self.maps_path[1:]:
+            #     self.maps = np.dstack((self.maps, np.array(Image.open(m))))
             print("shape maps ", self.maps.shape)
         else:
             self.maps = np.array(self.image)
@@ -100,16 +107,20 @@ class Tiling:
         if (self.end.x + self.bo) > self.image.width:
             start_h = (self.image.width - 1 * self.bo - self.border, self.start.y)
             end_h = (self.image.width - 1 * self.bo, self.end.y)
+            print("overflow")
         else:
             start_h = (self.end.x - self.bo + 1, self.start.y)
             end_h = (self.end.x - self.bo + self.border, self.end.y)
+            print("overflow")
 
         if (self.end.y + self.bv) > self.image.height:
             start_v = (self.start.x, self.image.height - 1 * self.bv - self.border)
             end_v = (self.end.x, self.image.height - 1 * self.bv)
+            print("overflow")
         else:
             start_v = (self.start.x, self.end.y - self.bv + 1)  #TODO +1 corretti? o shear deve avere -1?
             end_v = (self.end.x, self.end.y - self.bv + self.border)
+            print("overflow")
 
         self.left_pixels = self.get_line(self.shear.A, self.shear.D)
         self.right_pixels = self.get_line(self.shear.B, self.shear.C)
@@ -214,21 +225,9 @@ class Tiling:
         #     testdr.polygon(px)
         #     testimg.save("test.png")
         #     new_img.save("composite.png")
-        #     # new_img = new_img.crop((minx, miny, maxx+1, maxy+1))
+        new_img = new_img.crop((minx, miny, maxx + 1, maxy + 1))
         #     mask.save("mask.png")
 
-        # selection = np.array(new_img)
-        # extract = []
-        # for l in selection:
-        #     if not all(p[3] == 0 for p in l):
-        #         extract.append(l)
-        #
-        # extract = np.array(extract)
-        # idx = np.argwhere(np.all(extract[..., :] == 0, axis=0))
-        # a2 = np.delete(extract, idx, axis=1)
-        #
-        # cropped = Image.fromarray(np.array(a2)[:,:,:3], mode='RGB')
-        # cropped.show()
         return new_img
 
     def start_search(self):
@@ -237,7 +236,6 @@ class Tiling:
         v_diff_values = []
         txt_path = os.path.join(OUT_DIR, "search_info.txt")
         f = open(txt_path, "w")
-        #TODO distingui caso rettangolo e parallelogramma
 
         # ricerca orizzontale
         step = 0
@@ -256,8 +254,6 @@ class Tiling:
                                 (self.right_border.C.x, self.right_border.C.y),
                                 (self.right_border.D.x, self.right_border.D.y))
 
-        # print("prima del while - tmp_right", tmp_right)
-        # print("prima del while - left_border", left_border.shape)
         #+++++++++++ fissato a sx, sposto il bordo di dx
         while step < 2 * self.bo and tmp_right.B.x < self.image.width and tmp_right.C.x < self.image.width:  # ricerca nell'area tra -bo e +bo
 
@@ -279,7 +275,7 @@ class Tiling:
                                     self.tuple_sum(self.right_border.D, self.delta_idx_TB[step]))
             f.write(str(step) + " " + str(tmp_right) + " " + str(m_norm) + "\n")
 
-        print("Minimun (h) distanze between borders find at step " + str(min_diff_right[1] - self.bo) + ": " + str(
+        print("Min (h) distanze between borders find at step " + str(min_diff_right[1] - self.bo) + ": " + str(
             min_diff_right[0]))
 
         #++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -299,10 +295,8 @@ class Tiling:
                                  (self.bottom_border.B.x, self.bottom_border.B.y),
                                  (self.bottom_border.C.x, self.bottom_border.C.y),
                                  (self.bottom_border.D.x, self.bottom_border.D.y))
-        # print("prima del while - tmp_bottom", tmp_bottom)
-        # print("prima del while - top_border", top_border.shape)
-        while step < 2 * self.bv and tmp_right.C.y < self.image.width and tmp_right.D.y < self.image.height:  # ricerca  nell'area tra -bo e +bo
-            # print("tmp bottom in search ", tmp_bottom.A, tmp_bottom.B, tmp_bottom.C, tmp_bottom.D)
+
+        while step < 2 * self.bv and tmp_right.C.y < self.image.width and tmp_right.D.y < self.image.height:
             bottom = self.selection.get_mat(self.maps, (tmp_bottom.A, tmp_bottom.B,
                                                         tmp_bottom.C, tmp_bottom.D),
                                             self.delta_idx_TB, self.delta_idx_RL[:self.border])
@@ -323,12 +317,8 @@ class Tiling:
 
         end_time = time.time()
 
-        print("Minimun (v) distanze between borders find at step " + str(min_diff_bottom[1] - self.bv) + ": " + str(
+        print("Min (v) distanze between borders find at step " + str(min_diff_bottom[1] - self.bv) + ": " + str(
             min_diff_bottom[0]))
-
-        # self.selection.get_mat((tmp_bottom.A, tmp_bottom.B,
-        #                         tmp_bottom.C, tmp_bottom.D),
-        #                        self.delta_idx_TB, self.delta_idx_RL[:self.border], mss="print")
 
         f.write("\n\n tot time: " + str(end_time - start_time) + " sec\n")
         #++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -339,16 +329,16 @@ class Tiling:
         self.right_border = min_right_border
 
         iname = os.path.splitext(self.filename)[0] + "_"
-
-        # left, top, right, bottom
+        module_img = None
+        mod_coord = None
         if type(self.selection).__name__ == "RectangleObject":
             mod_coord = (self.start[0], self.start[1], self.right_border.start.x, self.bottom_border.start.y)
             module = self.image.crop(mod_coord)
-            imgm = Image.fromarray(np.array(module.convert('RGBA')), mode='RGBA')
+            module_img = Image.fromarray(np.array(module.convert('RGBA')), mode='RGBA')
             # self.tiled = self.tile_image(imgm) #TODO tiling (anche per shear)
             # self.save_img(self.tiled, file_name=iname + "tiled.png")
 
-            self.save_img(imgm, iname + 'Module.png')
+            self.save_img(module_img, iname + 'Module.png')
 
             # imgc = Image.fromarray(np.array(self.crop(self.image, self.start, self.end).convert('RGBA')), mode='RGBA')
             # self.save_img(imgc, iname + 'user_crop.png')
@@ -390,6 +380,7 @@ class Tiling:
                                               # self.line_intersection((p1, p2), (p3, p4)),
                                               rpx[-1], lpx[-1],
                                               tpx + rpx + bpx[::-1] + lpx[::-1])
+            mod_coord = [tpx[0], rpx[0], rpx[-1], lpx[-1]]
 
             if self.maps_path is not None:
                 self.crop_maps([tpx[0], rpx[0], rpx[-1], lpx[-1]], tpx=tpx, rpx=rpx, lpx=lpx, bpx=bpx)
@@ -410,22 +401,27 @@ class Tiling:
             #                             self.right_border.C, self.right_border.D)
             # self.save_img(llll, 'RIGHT.png')
 
+            # tiled = self.tile_image(Image.fromarray(module_img, mode='RGBA'), [tpx[0], rpx[0], rpx[-1], lpx[-1]])
+
+        self.tiled = self.selection.tile_image(module_img, mod_coord)
+        self.save_img(self.tiled, file_name=iname + "tiled.png")
         self.plot(h_diff_values, self.bo, file_name=iname + "h_plot.png")
         self.plot(v_diff_values, self.bv, file_name=iname + "v_plot.png")
 
     def crop_maps(self, coord, lpx=None, rpx=None, tpx=None, bpx=None):
+        mss = False
+        img = None
         for f in self.maps_path:
-            if type(self.selection).__name__ == "RectangleObject":
-                img = Image.open(f)
-                img = img.crop(coord)
-            elif type(self.selection).__name__ == "ShearRectangle":
-                img = self._get_masked_img(Image.open(f), tpx[0], rpx[0],
-                                           rpx[-1], lpx[-1],
-                                           tpx + rpx + bpx[::-1] + lpx[::-1])
-
-            if img.width == self.image.width and img.height == self.image.height:
-                img_name = os.path.basename(f)
-                name = os.path.splitext(img_name)[0] + "_Module" + os.path.splitext(img_name)[1]
+            imgog = Image.open(f)
+            if imgog.width == self.image.width and imgog.height == self.image.height:
+                if type(self.selection).__name__ == "RectangleObject":
+                    img = imgog.crop(coord)
+                elif type(self.selection).__name__ == "ShearRectangle":
+                    img = self._get_masked_img(imgog, tpx[0], rpx[0],
+                                               rpx[-1], lpx[-1],
+                                               tpx + rpx + bpx[::-1] + lpx[::-1])
+                name = os.path.basename(f)
+                name = os.path.splitext(name)[0] + "_Module" + os.path.splitext(name)[1]
                 self.save_img(img, file_name=name)
             else:
                 print("Texture map " + os.path.basename(f) + " has not the same dimensions of the processed texture.")
@@ -445,29 +441,65 @@ class Tiling:
         cropped = img.crop((left - h_border, top - v_border, right + h_border, bottom + v_border))
         return cropped
 
-    def tile_image(self, tile: Image.Image):
-        og_w = self.image.size[0]
-        og_h = self.image.size[1]
-        tile_w, tile_h = tile.size
-
-        # get how many times to tile module to fit original image
-        xrepeat = og_w // tile_w
-        yrepeat = og_h // tile_h
-        # 2x2 tiling even if module is big
-        xrepeat = 2 if xrepeat == 1 else xrepeat
-        yrepeat = 2 if yrepeat == 1 else yrepeat
-
-        tiled = Image.new('RGB', (xrepeat * tile_w, yrepeat * tile_h))
-
-        for i in range(0, xrepeat * tile_w, tile_w):
-            for j in range(0, yrepeat * tile_h, tile_h):
-                tiled.paste(tile, (i, j))
-
-        return tiled
-
-    # def normalize(self, arr):
-    #     normalized = (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
-    #     return normalized
+    #caso Rettangolo (base)
+    # def tile_image(self, tile: Image.Image):
+    #     og_w = self.image.size[0]
+    #     og_h = self.image.size[1]
+    #     tile_w, tile_h = tile.size
+    #
+    #     # get how many times to tile module to fit original image
+    #     xrepeat = og_w // tile_w
+    #     yrepeat = og_h // tile_h
+    #     # 2x2 tiling even if module is big
+    #     xrepeat = 3 if xrepeat == 1 else xrepeat
+    #     yrepeat = 3 if yrepeat == 1 else yrepeat
+    #
+    #     tiled = Image.new('RGB', (xrepeat * tile_w, yrepeat * tile_h))
+    #
+    #     for i in range(0, xrepeat * tile_w, tile_w):
+    #         for j in range(0, yrepeat * tile_h, tile_h):
+    #             tiled.paste(tile, (i, j))
+    #
+    #     return tiled
+    # def tile_image(self, tile: Image.Image, coords):
+    #     og_w = self.image.size[0]
+    #     og_h = self.image.size[1]
+    #     tiled = Image.new('RGB', (og_w*2, og_h*2))
+    #
+    #     mins = np.min(np.asarray(coords), axis=0)
+    #     coords = coords - mins
+    #     init_coords = copy(coords)
+    #     delta_x = np.asarray(coords[1])-np.asarray(coords[0])
+    #     delta_y = np.asarray(coords[3])-np.asarray(coords[0])
+    #
+    #     for rr in range(3):
+    #         prev = copy(coords)
+    #         for cc in range(3):
+    #             tiled.paste(im=tile, box=tuple(coords[0]), mask=tile)
+    #             a = coords[1]
+    #             b = tuple(map(sum, zip(coords[1], delta_x)))
+    #             c = tuple(map(sum, zip(b, delta_y)))
+    #             d = tuple(map(sum, zip(a, delta_y)))
+    #             coords = [a, b, c, d]
+    #         a = prev[3]
+    #         b = prev[2]
+    #         c = tuple(map(sum, zip(b, delta_y)))
+    #         d = tuple(map(sum, zip(a, delta_y)))
+    #         coords = [a, b, c, d]
+    #
+    #
+    #     a = tuple(init_coords[0])
+    #     b = tuple(map(sum, zip(a, np.multiply(delta_x, 3))))
+    #     c = tuple(map(sum, zip(b, np.multiply(delta_y, 3))))
+    #     d = tuple(map(sum, zip(a, np.multiply(delta_y, 3))))
+    #     minx = min(a[0], b[0], c[0], d[0])
+    #     maxx = max(a[0], b[0], c[0], d[0])
+    #     miny = min(a[1], b[1], c[1], d[1])
+    #     maxy = max(a[1], b[1], c[1], d[1])
+    #     tiled = tiled.crop((minx, miny, maxx, maxy))
+    #     #TODO finisci + tiling 3x3
+    #
+    #     return tiled
 
     def save_img(self, img: Image.Image, file_name="image.png"):
         ts = TSTAMP
@@ -475,7 +507,6 @@ class Tiling:
         file_path = os.path.join(OUT_DIR, currTS2 + file_name)
         if not os.path.isdir(OUT_DIR):
             os.mkdir(OUT_DIR)
-        # print("immagine da salvare - size - "+ str(img.size))
         img.save(file_path)
 
     def plot(self, values, range_limit, direction=0, file_name="plot.png"):
@@ -531,6 +562,7 @@ class Application(tk.Frame):
         self.canvas = CanvasImage(self.master, path=imgpath, coords=coords)  # create widget
         self.canvas.grid(row=0, column=0)  # show widget
 
+        self.weight_file = None
         self.folder_maps = None
 
         #menu bar creation
@@ -614,32 +646,48 @@ class Application(tk.Frame):
     def load_folder(self, event=None):
         """ Open single image to tile in a folder containing all texture maps.
         """
+        # try:
+        #     int("not_a_number")
+        # except ValueError as e:
+        #     print("str():", str(e))
+        #     print("repr():", repr(e))
+
         file_path = filedialog.askopenfilename(title="Open image map in folder...",
                                                filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif *.bmp *.ico")])
-        file_path = os.path.abspath(file_path)
-        if file_path:
-            folder_path = os.path.dirname(file_path)
-            # if os.path.isdir(folder_path):
-            #     folder_files = [join(folder_path, f) for f in listdir(folder_path) if isfile(join(folder_path, f))]
-            if os.path.isdir(folder_path):
-                folder_files = [join(folder_path, f) for f in listdir(folder_path) if isfile(join(folder_path, f))]
-                folder_files = [f for f in folder_files if
-                                (f.endswith((".jpg", ".png", ".bmp", ".ico", ".jpeg", ".gif")))]
-                print("folder files ", folder_files)
-                # maps = [f for f in folder_files if not os.path.basename(file_path) in f]
-                # print(maps)
-                # self.percorso=file_path
-            else:
-                sys.exit("Cannot open the provided directory.")
+        # if file_path:
+        try:
+            with open(file_path, "r") as _:
+                abs_file_path = os.path.abspath(file_path)
+                self.imgpath = abs_file_path
+                folder_path = os.path.dirname(abs_file_path)
+                # if os.path.isdir(folder_path):
+                #     folder_files = [join(folder_path, f) for f in listdir(folder_path) if isfile(join(folder_path, f))]
+                if os.path.isdir(folder_path):
+                    folder_files = [join(folder_path, f) for f in listdir(folder_path) if isfile(join(folder_path, f))]
+                    txtfile = [x for x in folder_files if x.endswith('.txt')]
+                    self.weight_file = txtfile[0] if len(txtfile) >= 1 else None
+                    print("txt file ", self.weight_file)
+                    folder_files = [f for f in folder_files if
+                                    (f.endswith((".jpg", ".png", ".bmp", ".ico", ".jpeg", ".gif")))]
+                    self.folder_maps = folder_files
+                    print("folder files ", folder_files)
+                    # maps = [f for f in folder_files if not os.path.basename(file_path) in f]
+                    # print(maps)
+                    # self.percorso=file_path
+                else:
+                    print("Cannot open the provided directory.")
 
             self.canvas.destroy()
-            self.canvas = CanvasImage(self.master, path=file_path, selection_mode=self.selection_value)  # create widget
+            self.canvas = CanvasImage(self.master, path=abs_file_path,
+                                      selection_mode=self.selection_value)  # create widget
             self.canvas.grid(row=0, column=0)
-            self.folder_maps = folder_files
             # self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
             #                      self.canvas.selection_obj.end, folder=folder_path, start_tiling=False)
-        else:
-            sys.exit("Cannot open image.")
+        except FileNotFoundError:
+            print("Error: The file ", file_path, " was not found.")
+            content = IMGPATH
+            print("Using default single image:")
+            print(content)
 
     def change_selection_mode(self, event=None):
         self.selection_value = self.selection_mode.get()
@@ -659,7 +707,7 @@ class Application(tk.Frame):
         self.tiling = Tiling(self.canvas.canvas.img, self.canvas.selection_obj.start,
                              self.canvas.selection_obj.end, self.canvas.selection_obj,
                              shear=self.canvas.selection_obj.coordinates,
-                             maps=self.folder_maps, filename=img_name)
+                             maps=self.folder_maps, weights=self.weight_file, filename=img_name)
 
     def do_popup(self, event=None):
         """ Right click event handler to open the popup menu.

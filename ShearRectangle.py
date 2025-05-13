@@ -1,6 +1,9 @@
 import tkinter as tk
 import math
+from copy import copy
+
 import numpy as np
+from PIL import Image
 from numpy.linalg import norm
 from Selection import SelectionObject
 from utils import TwoDPoint, Coordinates
@@ -250,3 +253,42 @@ class ShearRectangle(SelectionObject):
                 mat[r][c] = og_img[int(i[1])][int(i[0])]
         self.mat = mat
         return mat
+
+
+    def tile_image(self, tile: Image, coords=None, xrepeat=3, yrepeat=3):
+        og_w = tile.size[0]
+        og_h = tile.size[1]
+        tiled = Image.new('RGBA', (og_w * xrepeat, og_h * yrepeat))
+
+        mins = np.min(np.asarray(coords), axis=0)
+        coords = coords - mins
+        init_coords = copy(coords)
+        delta_x = np.asarray(coords[1]) - np.asarray(coords[0])
+        delta_y = np.asarray(coords[3]) - np.asarray(coords[0])
+
+        for rr in range(yrepeat):
+            prev = copy(coords)
+            for cc in range(xrepeat):
+                tiled.paste(im=tile, box=tuple(coords[0]), mask=tile)
+                a = coords[1]
+                b = tuple(map(sum, zip(coords[1], delta_x)))
+                c = tuple(map(sum, zip(b, delta_y)))
+                d = tuple(map(sum, zip(a, delta_y)))
+                coords = [a, b, c, d]
+            a = prev[3]
+            b = prev[2]
+            c = tuple(map(sum, zip(b, delta_y)))
+            d = tuple(map(sum, zip(a, delta_y)))
+            coords = [a, b, c, d]
+
+        # a = tuple(init_coords[0])
+        # b = tuple(map(sum, zip(a, np.multiply(delta_x, 3))))
+        # c = tuple(map(sum, zip(b, np.multiply(delta_y, 3))))
+        # d = tuple(map(sum, zip(a, np.multiply(delta_y, 3))))
+        # minx = min(a[0], b[0], c[0], d[0])
+        # maxx = max(a[0], b[0], c[0], d[0])
+        # miny = min(a[1], b[1], c[1], d[1])
+        # maxy = max(a[1], b[1], c[1], d[1])
+        # tiled = tiled.crop((minx, miny, maxx, maxy))
+
+        return tiled
