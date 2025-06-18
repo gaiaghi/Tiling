@@ -42,6 +42,7 @@ class Tiling:
         self.filename = filename
         self.selection = selection
         self.tiled = None
+        self.cmod = None
         # self.master = master
         self.search_ratio = search_area
         # overlap border size
@@ -50,10 +51,18 @@ class Tiling:
         # start and end of selected area
         self.start = start
         self.end = end
+
         if shear is None:
             self.shear = Coordinates((start.x, start.y), (end.x, start.y), (start.x, end.y), (end.x, end.y))
         else:
             self.shear = Coordinates(shear[0], shear[1], shear[2], shear[3])  # coordinates of sheared rect
+
+        if type(self.selection).__name__ == "ShearRectangle":
+            self.start.x = self.shear.min()[0]
+            self.start.y = self.shear.min()[1]
+            self.end.x = self.shear.max()[0]
+            self.end.y = self.shear.max()[1]
+            print("update start, end ", self.start.x, self.start.y, self.end.x, self.end.y)
 
         self.maps_path = maps  # all image maps
         # width and height of the user-selected area
@@ -104,23 +113,23 @@ class Tiling:
         print("bo, bv ", self.bo, self.bv)
 
         # check if image overflow
-        if (self.end.x + self.bo) > self.image.width:
-            start_h = (self.image.width - 1 * self.bo - self.border, self.start.y)
-            end_h = (self.image.width - 1 * self.bo, self.end.y)
-            print("overflow")
+        #TODO idea: se shear overflow1 (orizzontale) allora, in realtà potrebbe essere da spostare anche il bottom
+        # ma in che direzione? questo è da capire
+        if (self.end.x + self.bo + self.border) > self.image.width:
+            start_h = (self.image.width - 2 * self.bo - self.border, self.start.y)
+            end_h = (self.image.width - 1 - 2 * self.bo, self.end.y)
+            print("overflow1")
         else:
             start_h = (self.end.x - self.bo + 1, self.start.y)
             end_h = (self.end.x - self.bo + self.border, self.end.y)
-            print("overflow")
 
-        if (self.end.y + self.bv) > self.image.height:
-            start_v = (self.start.x, self.image.height - 1 * self.bv - self.border)
-            end_v = (self.end.x, self.image.height - 1 * self.bv)
-            print("overflow")
+        if (self.end.y + self.bv + self.border) > self.image.height:
+            start_v = (self.start.x, self.image.height - 2 * self.bv - self.border )
+            end_v = (self.end.x, self.image.height - 2 * self.bv - 1)
+            print("overflow2")
         else:
-            start_v = (self.start.x, self.end.y - self.bv + 1)  #TODO +1 corretti? o shear deve avere -1?
+            start_v = (self.start.x, self.end.y - self.bv + 1)
             end_v = (self.end.x, self.end.y - self.bv + self.border)
-            print("overflow")
 
         self.left_pixels = self.get_line(self.shear.A, self.shear.D)
         self.right_pixels = self.get_line(self.shear.B, self.shear.C)
@@ -333,20 +342,12 @@ class Tiling:
         mod_coord = None
         if type(self.selection).__name__ == "RectangleObject":
             mod_coord = (self.start[0], self.start[1], self.right_border.start.x, self.bottom_border.start.y)
+
             module = self.image.crop(mod_coord)
             module_img = Image.fromarray(np.array(module.convert('RGBA')), mode='RGBA')
-            # self.tiled = self.tile_image(imgm) #TODO tiling (anche per shear)
-            # self.save_img(self.tiled, file_name=iname + "tiled.png")
 
             self.save_img(module_img, iname + 'Module.png')
 
-            # imgc = Image.fromarray(np.array(self.crop(self.image, self.start, self.end).convert('RGBA')), mode='RGBA')
-            # self.save_img(imgc, iname + 'user_crop.png')
-            # area di ricerca
-            # search_area = og_img[self.start[1]: self.end[1],
-            #               self.end[0] - self.bo: self.end[0] + self.bo, :]
-            # imgs = Image.fromarray(search_area, mode='RGB')
-            # self.save_img(imgs, iname + 'search_area.png')
             if self.maps_path is not None:
                 self.crop_maps(mod_coord)
 
@@ -382,8 +383,9 @@ class Tiling:
                                               tpx + rpx + bpx[::-1] + lpx[::-1])
             mod_coord = [tpx[0], rpx[0], rpx[-1], lpx[-1]]
 
+
             if self.maps_path is not None:
-                self.crop_maps([tpx[0], rpx[0], rpx[-1], lpx[-1]], tpx=tpx, rpx=rpx, lpx=lpx, bpx=bpx)
+                self.crop_maps([tpx[0], rpx[0], rpx[-2], lpx[-2]], tpx=tpx, rpx=rpx, lpx=lpx, bpx=bpx)
                 # for f in self.maps_path:
                 #     m = self._get_masked_img(Image.open(f), tpx[0], rpx[0],
                 #                              rpx[-1], lpx[-1],
@@ -392,7 +394,12 @@ class Tiling:
                 #     name = os.path.splitext(img_name)[0] + "_Module" + os.path.splitext(img_name)[1]
                 #     self.save_img(m, name)
             else:
-                self.save_img(module_img, iname + 'module_shear.png')
+                module_save = self._get_masked_img(self.image, tpx[0], rpx[0],
+                                                  rpx[-2], lpx[-2],
+                                                  tpx + rpx + bpx[::-2] + lpx[::-2])
+                #TODO ritaglia modulo e rendilo quadrato se shear in una sola dimensione
+                self.save_img(module_save, iname + 'module_shear.png')
+
             # rrrrr = self._get_masked_img(self.left_border.A, self.left_border.B,
             #                              self.left_border.C, self.left_border.D)
             # self.save_img(rrrrr, 'LEFT.png')
@@ -404,6 +411,7 @@ class Tiling:
             # tiled = self.tile_image(Image.fromarray(module_img, mode='RGBA'), [tpx[0], rpx[0], rpx[-1], lpx[-1]])
 
         self.tiled = self.selection.tile_image(module_img, mod_coord)
+        self.cmod = mod_coord
         self.save_img(self.tiled, file_name=iname + "tiled.png")
         self.plot(h_diff_values, self.bo, file_name=iname + "h_plot.png")
         self.plot(v_diff_values, self.bv, file_name=iname + "v_plot.png")
@@ -440,66 +448,6 @@ class Tiling:
         right, bottom = end.x, end.y
         cropped = img.crop((left - h_border, top - v_border, right + h_border, bottom + v_border))
         return cropped
-
-    #caso Rettangolo (base)
-    # def tile_image(self, tile: Image.Image):
-    #     og_w = self.image.size[0]
-    #     og_h = self.image.size[1]
-    #     tile_w, tile_h = tile.size
-    #
-    #     # get how many times to tile module to fit original image
-    #     xrepeat = og_w // tile_w
-    #     yrepeat = og_h // tile_h
-    #     # 2x2 tiling even if module is big
-    #     xrepeat = 3 if xrepeat == 1 else xrepeat
-    #     yrepeat = 3 if yrepeat == 1 else yrepeat
-    #
-    #     tiled = Image.new('RGB', (xrepeat * tile_w, yrepeat * tile_h))
-    #
-    #     for i in range(0, xrepeat * tile_w, tile_w):
-    #         for j in range(0, yrepeat * tile_h, tile_h):
-    #             tiled.paste(tile, (i, j))
-    #
-    #     return tiled
-    # def tile_image(self, tile: Image.Image, coords):
-    #     og_w = self.image.size[0]
-    #     og_h = self.image.size[1]
-    #     tiled = Image.new('RGB', (og_w*2, og_h*2))
-    #
-    #     mins = np.min(np.asarray(coords), axis=0)
-    #     coords = coords - mins
-    #     init_coords = copy(coords)
-    #     delta_x = np.asarray(coords[1])-np.asarray(coords[0])
-    #     delta_y = np.asarray(coords[3])-np.asarray(coords[0])
-    #
-    #     for rr in range(3):
-    #         prev = copy(coords)
-    #         for cc in range(3):
-    #             tiled.paste(im=tile, box=tuple(coords[0]), mask=tile)
-    #             a = coords[1]
-    #             b = tuple(map(sum, zip(coords[1], delta_x)))
-    #             c = tuple(map(sum, zip(b, delta_y)))
-    #             d = tuple(map(sum, zip(a, delta_y)))
-    #             coords = [a, b, c, d]
-    #         a = prev[3]
-    #         b = prev[2]
-    #         c = tuple(map(sum, zip(b, delta_y)))
-    #         d = tuple(map(sum, zip(a, delta_y)))
-    #         coords = [a, b, c, d]
-    #
-    #
-    #     a = tuple(init_coords[0])
-    #     b = tuple(map(sum, zip(a, np.multiply(delta_x, 3))))
-    #     c = tuple(map(sum, zip(b, np.multiply(delta_y, 3))))
-    #     d = tuple(map(sum, zip(a, np.multiply(delta_y, 3))))
-    #     minx = min(a[0], b[0], c[0], d[0])
-    #     maxx = max(a[0], b[0], c[0], d[0])
-    #     miny = min(a[1], b[1], c[1], d[1])
-    #     maxy = max(a[1], b[1], c[1], d[1])
-    #     tiled = tiled.crop((minx, miny, maxx, maxy))
-    #     #TODO finisci + tiling 3x3
-    #
-    #     return tiled
 
     def save_img(self, img: Image.Image, file_name="image.png"):
         ts = TSTAMP
@@ -699,7 +647,6 @@ class Application(tk.Frame):
         #                          self.canvas.selection_obj.end)
         # else:
         #     self.tiling.start_search()
-        #TODO qui la separazione sui casi rect o shear rect
 
         # self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
         #                      self.canvas.selection_obj.end, maps=self.folder_maps)
@@ -708,6 +655,8 @@ class Application(tk.Frame):
                              self.canvas.selection_obj.end, self.canvas.selection_obj,
                              shear=self.canvas.selection_obj.coordinates,
                              maps=self.folder_maps, weights=self.weight_file, filename=img_name)
+        self.canvas.selection_obj.rect_module(*self.tiling.cmod)
+        #TODO aggiungi bordo rosso per evidenziare il modulo trovato (rispetto alla selezione utente)
 
     def do_popup(self, event=None):
         """ Right click event handler to open the popup menu.

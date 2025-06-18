@@ -16,6 +16,7 @@ class SelectionObject:
         self.img_height = height
         self.select_opts = select_opts
         self.rects = None
+        self.module_rects = None
 
         if coords is None:
             self.start = TwoDPoint(0, 0)
@@ -58,6 +59,8 @@ class SelectionObject:
     def _hide(self):
         for rect in self.rects:
             self.canvas.itemconfigure(rect, state=tk.HIDDEN)
+        for mod in self.module_rects:
+            self.canvas.itemconfigure(mod, state=tk.HIDDEN)
 
     def _clear(self, event=None):
         self._hide()
@@ -105,6 +108,14 @@ class SelectionObject:
             self.canvas.itemconfigure(rect, state=tk.NORMAL)
 
         self._show()
+
+    def rect_module(self, imin_x, imin_y, imax_x, imax_y):
+        select_opts = dict( width=2, fill='red', state=tk.NORMAL)
+        self.module_rects = (self.canvas.create_line(imin_x, imin_y, imax_x, imin_y, **select_opts, tags=("line",)),  #a-b
+                      self.canvas.create_line(imax_x, imin_y, imax_x, imax_y, **select_opts, tags=("line",)),  #b-c
+                      self.canvas.create_line(imax_x, imax_y, imin_x, imax_y, **select_opts, tags=("line",)),  #c-d
+                      self.canvas.create_line(imin_x, imax_y, imin_x, imin_y, **select_opts, tags=("line",)),  #d-a
+                      )
 
     @abstractmethod
     def _update_rects(self, imin_x, imin_y, imax_x, imax_y, omin_x, omin_y, omax_x, omax_y):

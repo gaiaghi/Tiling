@@ -160,7 +160,7 @@ class ShearRectangle(SelectionObject):
             self.canvas.coords(index2, bx, by, x2, y2)
             # self.coordinates = ((ax, ay), (bx, by), (x2, y2), (x1, y1))
             self._update_coordinates()
-            print(self.canvas.coords(element), self.canvas.coords(index1), self.canvas.coords(index2))
+            # print(self.canvas.coords(element), self.canvas.coords(index1), self.canvas.coords(index2))
             self._show()
 
     def quit(self, event):
@@ -183,6 +183,7 @@ class ShearRectangle(SelectionObject):
                       self.canvas.create_line(imax_x, imax_y, imin_x, imax_y, **select_opts2, tags=("line",)),  #c-d
                       self.canvas.create_line(imin_x, imax_y, imin_x, imin_y, **select_opts2, tags=("line",)),  #d-a
                       )
+
 
     def _update_coordinates(self):
         box_image = self.canvas.coords(self.container)  # get image area

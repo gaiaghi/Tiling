@@ -43,6 +43,16 @@ class Coordinates(object):
     def set_d(self, d):
         self.D = d
 
+    def max(self):
+        maxx = max(self.A[0], self.B[0], self.C[0], self.D[0])
+        maxy = max(self.A[1], self.B[1], self.C[1], self.D[1])
+        return (maxx, maxy)
+
+    def min(self):
+        minx = min(self.A[0], self.B[0], self.C[0], self.D[0])
+        miny = min(self.A[1], self.B[1], self.C[1], self.D[1])
+        return (minx, miny)
+
     def __getitem__(self, idx):
         if idx == 0:
             return self.A
