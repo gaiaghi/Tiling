@@ -16,7 +16,7 @@ class SelectionObject:
         self.img_height = height
         self.select_opts = select_opts
         self.rects = None
-        self.module_rects = None
+        self.module_rects = ()
 
         if coords is None:
             self.start = TwoDPoint(0, 0)
@@ -68,16 +68,29 @@ class SelectionObject:
         self.end = TwoDPoint(self.img_width, self.img_height)
         # self.draft = None #TODO override in shear
 
+    def hide_module_rects(self):
+        for mod in self.module_rects:
+            self.canvas.itemconfigure(mod, state=tk.HIDDEN)
+
     def _show(self):
         for r in self.rects:  # Make sure all are now visible.
             self.canvas.itemconfigure(r, state=tk.NORMAL)
 
-    def _coord_mapping(self, x, y, box):
+    def _coord_mapping(self, x, y, box): #screen to img
         og_h = self.img_height
         og_w = self.img_width
         h_ratio = og_h / (box[3] - box[1])
         w_ratio = og_w / (box[2] - box[0])
         coord = ((x - box[0]) * w_ratio, (y - box[1]) * h_ratio)
+
+        return tuple(map(lambda n: math.ceil(n), coord))
+
+    def _img_to_screen(self, xx, yy, box):
+        og_h = self.img_height
+        og_w = self.img_width
+        h_ratio = og_h / (box[3] - box[1])
+        w_ratio = og_w / (box[2] - box[0])
+        coord = ((xx / w_ratio) + box[0], (yy / h_ratio) + box[1])
 
         return tuple(map(lambda n: math.ceil(n), coord))
 
@@ -109,13 +122,22 @@ class SelectionObject:
 
         self._show()
 
-    def rect_module(self, imin_x, imin_y, imax_x, imax_y):
+    def rect_module(self, a, b, c, d):
         select_opts = dict( width=2, fill='red', state=tk.NORMAL)
-        self.module_rects = (self.canvas.create_line(imin_x, imin_y, imax_x, imin_y, **select_opts, tags=("line",)),  #a-b
-                      self.canvas.create_line(imax_x, imin_y, imax_x, imax_y, **select_opts, tags=("line",)),  #b-c
-                      self.canvas.create_line(imax_x, imax_y, imin_x, imax_y, **select_opts, tags=("line",)),  #c-d
-                      self.canvas.create_line(imin_x, imax_y, imin_x, imin_y, **select_opts, tags=("line",)),  #d-a
-                      )
+        print(a, b, c, d)
+        box_image = self.canvas.coords(self.container)  # get image area
+        box_img_int = tuple(map(int, box_image))
+        a = self._img_to_screen(a[0], a[1], box_img_int)
+        b = self._img_to_screen(b[0], b[1], box_img_int)
+        c = self._img_to_screen(c[0], c[1], box_img_int)
+        d = self._img_to_screen(d[0], d[1], box_img_int)
+        print(a,b,c,d)
+
+        self.module_rects = (self.canvas.create_line(a[0],a[1],b[0],b[1], **select_opts, tags=("line",)),  #a-b
+                             self.canvas.create_line(b[0], b[1], c[0], c[1], **select_opts, tags=("line",)),  #b-c
+                             self.canvas.create_line(c[0], c[1], d[0], d[1], **select_opts, tags=("line",)),  #c-d
+                             self.canvas.create_line(d[0], d[1], a[0], a[1], **select_opts, tags=("line",)),  #d-a
+                            )
 
     @abstractmethod
     def _update_rects(self, imin_x, imin_y, imax_x, imax_y, omin_x, omin_y, omax_x, omax_y):

@@ -202,6 +202,7 @@ class CanvasImage:
 
         # Callback function to update it given two points of its diagonal.
         def on_drag(start, end, **kwarg):  # Must accept these arguments.
+            self.selection_obj.hide_module_rects()
             self.selection_obj.update(start, end)
 
         # Create mouse position tracker that uses the function.
