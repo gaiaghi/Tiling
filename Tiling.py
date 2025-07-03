@@ -124,7 +124,7 @@ class Tiling:
             end_h = (self.end.x - self.bo + self.border, self.end.y)
 
         if (self.end.y + self.bv + self.border) > self.image.height:
-            start_v = (self.start.x, self.image.height - 2 * self.bv - self.border )
+            start_v = (self.start.x, self.image.height - 2 * self.bv - self.border)
             end_v = (self.end.x, self.image.height - 2 * self.bv - 1)
             print("overflow2")
         else:
@@ -227,14 +227,99 @@ class Tiling:
         miny = min(a[1], b[1], c[1], d[1])
         maxy = max(a[1], b[1], c[1], d[1])
         new_img = Image.composite(image, background, mask)
-
+        new_img.crop((minx, miny, maxx + 1, maxy + 1)).save(OUT_DIR + "zzz.png")
         # if px is not None: # solo per testing
         #     testimg = copy(self.image)
         #     testdr = ImageDraw.Draw(testimg)
         #     testdr.polygon(px)
         #     testimg.save("test.png")
         #     new_img.save("composite.png")
-        new_img = new_img.crop((minx, miny, maxx + 1, maxy + 1))
+
+        imgmat = np.array(new_img)  #TODO sposta in un'altra funzione
+        if a[0] == d[0]:
+            #   |\
+            #   |  \
+            #   |   |
+            #    \  |
+            #      \|
+            stx = a[0]
+            endx = c[0]
+            sty = a[1]
+            endy = c[1]
+
+            if a[1] < b[1]:
+                if d[1] > b[1]:
+                    crop = imgmat[a[1]:b[1], a[0]:b[0]]
+                    idx = list(range(d[1] + 1, c[1] + 1))
+                    idy = list(range(d[0], c[0]))
+                    tmp = imgmat[np.ix_(idx, idy)]
+                    ids = crop != 0
+                    tmp[ids] = crop[ids]
+                    imgmat[np.ix_(idx, idy)] = tmp
+                    sty = b[1]
+                    endy = c[1]
+                else:
+                    print("----caso 1, doppio taglio")
+                    dy = d[1] - a[1]
+                    crop = imgmat[a[1]:d[1], a[0]:b[0]]
+                    idx = list(range(d[1] + 1, d[1] + dy + 1))
+                    idy = list(range(a[0], b[0]))
+                    tmp = imgmat[np.ix_(idx, idy)]
+                    ids = crop != 0
+                    tmp[ids] = crop[ids]
+                    imgmat[np.ix_(idx, idy)] = tmp
+
+                    crop2 = imgmat[d[1]+dy:c[1], a[0]:b[0]]
+                    dy2 = c[1]-(d[1]+dy)
+                    idx2 = list(range(b[1] - dy2, b[1]))
+                    idy2 = list(range(a[0], b[0]))
+                    tmp2 = imgmat[np.ix_(idx2, idy2)]
+                    ids2 = crop2 != 0
+                    tmp2[ids2] = crop2[ids2]
+                    imgmat[np.ix_(idx2, idy2)] = tmp2
+
+                    sty = d[1]
+                    endy = d[1] + dy
+
+            else:
+                if c[1] > a[1]:
+                    print("-----caso 2, taglio 1")
+                    crop = imgmat[b[1]:a[1], a[0]:b[0]]
+                    idx = list(range(c[1] + 1, d[1] + 1))
+                    idy = list(range(a[0], b[0]))
+                    tmp = imgmat[np.ix_(idx, idy)]
+                    ids = crop != 0
+                    tmp[ids] = crop[ids]
+                    imgmat[np.ix_(idx, idy)] = tmp
+                    sty = a[1]
+                    endy = d[1]
+                else:
+                    print("-----caso 2, tagli 2")
+                    crop = imgmat[b[1]:c[1], a[0]:b[0]]
+                    dy = c[1]-b[1]
+                    idx = list(range(c[1] + 1, c[1] + 1 + dy))
+                    idy = list(range(a[0], b[0]))
+                    tmp = imgmat[np.ix_(idx, idy)]
+                    ids = crop != 0
+                    tmp[ids] = crop[ids]
+                    imgmat[np.ix_(idx, idy)] = tmp
+
+                    crop2 = imgmat[c[1]+dy:d[1], a[0]:b[0]]
+                    dy2 = d[1]-(c[1]+dy)
+                    idx2 = list(range(a[1] - dy2, a[1]))
+                    idy2 = idy
+                    tmp2 = imgmat[np.ix_(idx2, idy2)]
+                    ids2 = crop2 != 0
+                    tmp2[ids2] = crop2[ids2]
+                    imgmat[np.ix_(idx2, idy2)] = tmp2
+
+                    sty = c[1]
+                    endy = d[1]-dy2
+
+
+            new_img = Image.fromarray(imgmat).crop((stx, sty, endx, endy))
+        else:
+            new_img = new_img.crop((minx, miny, maxx + 1, maxy + 1))
         #     mask.save("mask.png")
 
         return new_img
@@ -262,7 +347,8 @@ class Tiling:
                                 (self.right_border.B.x, self.right_border.B.y),
                                 (self.right_border.C.x, self.right_border.C.y),
                                 (self.right_border.D.x, self.right_border.D.y))
-
+        min_right_border = Coordinates(tmp_right.A.tuple, tmp_right.B.tuple, tmp_right.C.tuple,
+                                       tmp_right.D.tuple)
         #+++++++++++ fissato a sx, sposto il bordo di dx
         while step < 2 * self.bo and tmp_right.B.x < self.image.width and tmp_right.C.x < self.image.width:  # ricerca nell'area tra -bo e +bo
 
@@ -304,7 +390,8 @@ class Tiling:
                                  (self.bottom_border.B.x, self.bottom_border.B.y),
                                  (self.bottom_border.C.x, self.bottom_border.C.y),
                                  (self.bottom_border.D.x, self.bottom_border.D.y))
-
+        min_bottom_border = Coordinates(tmp_bottom.A.tuple, tmp_bottom.B.tuple,
+                                        tmp_bottom.C.tuple, tmp_bottom.D.tuple)
         while step < 2 * self.bv and tmp_right.C.y < self.image.width and tmp_right.D.y < self.image.height:
             bottom = self.selection.get_mat(self.maps, (tmp_bottom.A, tmp_bottom.B,
                                                         tmp_bottom.C, tmp_bottom.D),
@@ -350,6 +437,8 @@ class Tiling:
 
             if self.maps_path is not None:
                 self.crop_maps(mod_coord)
+            mod_coord = [(mod_coord[0], mod_coord[1]), (mod_coord[2], mod_coord[1]),
+                         (mod_coord[2], mod_coord[3]), (mod_coord[0], mod_coord[3])]
 
         elif type(self.selection).__name__ == "ShearRectangle":
             #+1 per includere una riga di sovrapposizione
@@ -383,7 +472,6 @@ class Tiling:
                                               tpx + rpx + bpx[::-1] + lpx[::-1])
             mod_coord = [tpx[0], rpx[0], rpx[-1], lpx[-1]]
 
-
             if self.maps_path is not None:
                 self.crop_maps([tpx[0], rpx[0], rpx[-2], lpx[-2]], tpx=tpx, rpx=rpx, lpx=lpx, bpx=bpx)
                 # for f in self.maps_path:
@@ -395,8 +483,8 @@ class Tiling:
                 #     self.save_img(m, name)
             else:
                 module_save = self._get_masked_img(self.image, tpx[0], rpx[0],
-                                                  rpx[-2], lpx[-2],
-                                                  tpx + rpx + bpx[::-2] + lpx[::-2])
+                                                   rpx[-2], lpx[-2],
+                                                   tpx + rpx + bpx[::-2] + lpx[::-2])
                 #TODO ritaglia modulo e rendilo quadrato se shear in una sola dimensione
                 self.save_img(module_save, iname + 'module_shear.png')
 
@@ -656,7 +744,6 @@ class Application(tk.Frame):
                              shear=self.canvas.selection_obj.coordinates,
                              maps=self.folder_maps, weights=self.weight_file, filename=img_name)
         self.canvas.selection_obj.rect_module(*self.tiling.cmod)
-        #TODO aggiungi bordo rosso per evidenziare il modulo trovato (rispetto alla selezione utente)
 
     def do_popup(self, event=None):
         """ Right click event handler to open the popup menu.

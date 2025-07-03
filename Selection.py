@@ -123,6 +123,7 @@ class SelectionObject:
         self._show()
 
     def rect_module(self, a, b, c, d):
+        self.hide_module_rects()
         select_opts = dict( width=2, fill='red', state=tk.NORMAL)
         print(a, b, c, d)
         box_image = self.canvas.coords(self.container)  # get image area

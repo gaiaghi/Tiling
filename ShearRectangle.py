@@ -98,6 +98,7 @@ class ShearRectangle(SelectionObject):
 
     def move_line(self, event):
         if self.selected:
+            self.hide_module_rects()
             box_image = self.canvas.coords(self.container)  # get image area
             box_img_int = tuple(map(int, box_image))
             omin_x, omin_y, omax_x, omax_y = box_img_int
