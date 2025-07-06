@@ -234,49 +234,60 @@ class Tiling:
         #     testdr.polygon(px)
         #     testimg.save("test.png")
         #     new_img.save("composite.png")
+        if a[0] == d[0] or a[1] == b[1]:
+            new_img = self.reshape_module(a, b, c, d, new_img)
+        else:
+            new_img = new_img.crop((minx, miny, maxx + 1, maxy + 1))
 
-        imgmat = np.array(new_img)  #TODO sposta in un'altra funzione
+        return new_img
+
+    def reshape_module(self, a, b, c, d, img):
+        imgmat = np.array(img)
+        stx = a[0]
+        endx = c[0]
+        sty = a[1]
+        endy = c[1]
         if a[0] == d[0]:
             #   |\
             #   |  \
             #   |   |
             #    \  |
             #      \|
-            stx = a[0]
-            endx = c[0]
-            sty = a[1]
-            endy = c[1]
 
             if a[1] < b[1]:
                 if d[1] > b[1]:
-                    crop = imgmat[a[1]:b[1], a[0]:b[0]]
-                    idx = list(range(d[1] + 1, c[1] + 1))
-                    idy = list(range(d[0], c[0]))
-                    tmp = imgmat[np.ix_(idx, idy)]
-                    ids = crop != 0
-                    tmp[ids] = crop[ids]
-                    imgmat[np.ix_(idx, idy)] = tmp
+                    print("----caso 1, taglio 1")
+                    imgmat = self.cut_paste(imgmat, a[1], b[1], a[0], b[0], d[1]+1, c[1]+1, d[0], c[0])
+                    # crop = imgmat[a[1]:b[1], a[0]:b[0]]
+                    # idx = list(range(d[1] + 1, c[1] + 1))
+                    # idy = list(range(d[0], c[0]))
+                    # tmp = imgmat[np.ix_(idx, idy)]
+                    # ids = crop != 0
+                    # tmp[ids] = crop[ids]
+                    # imgmat[np.ix_(idx, idy)] = tmp
                     sty = b[1]
                     endy = c[1]
                 else:
-                    print("----caso 1, doppio taglio")
+                    print("----caso 1, taglio 2")
                     dy = d[1] - a[1]
-                    crop = imgmat[a[1]:d[1], a[0]:b[0]]
-                    idx = list(range(d[1] + 1, d[1] + dy + 1))
-                    idy = list(range(a[0], b[0]))
-                    tmp = imgmat[np.ix_(idx, idy)]
-                    ids = crop != 0
-                    tmp[ids] = crop[ids]
-                    imgmat[np.ix_(idx, idy)] = tmp
+                    imgmat = self.cut_paste(imgmat, a[1], d[1], a[0], b[0], d[1]+1, d[1]+dy+1, a[0], b[0])
+                    # crop = imgmat[a[1]:d[1], a[0]:b[0]]
+                    # idx = list(range(d[1] + 1, d[1] + dy + 1))
+                    # idy = list(range(a[0], b[0]))
+                    # tmp = imgmat[np.ix_(idx, idy)]
+                    # ids = crop != 0
+                    # tmp[ids] = crop[ids]
+                    # imgmat[np.ix_(idx, idy)] = tmp
 
-                    crop2 = imgmat[d[1]+dy:c[1], a[0]:b[0]]
-                    dy2 = c[1]-(d[1]+dy)
-                    idx2 = list(range(b[1] - dy2, b[1]))
-                    idy2 = list(range(a[0], b[0]))
-                    tmp2 = imgmat[np.ix_(idx2, idy2)]
-                    ids2 = crop2 != 0
-                    tmp2[ids2] = crop2[ids2]
-                    imgmat[np.ix_(idx2, idy2)] = tmp2
+                    dy2 = c[1] - (d[1] + dy)
+                    imgmat = self.cut_paste(imgmat, d[1]+dy, c[1], a[0], b[0], b[1]-dy2, b[1], a[0], b[0])
+                    # crop2 = imgmat[d[1] + dy:c[1], a[0]:b[0]]
+                    # idx2 = list(range(b[1] - dy2, b[1]))
+                    # idy2 = list(range(a[0], b[0]))
+                    # tmp2 = imgmat[np.ix_(idx2, idy2)]
+                    # ids2 = crop2 != 0
+                    # tmp2[ids2] = crop2[ids2]
+                    # imgmat[np.ix_(idx2, idy2)] = tmp2
 
                     sty = d[1]
                     endy = d[1] + dy
@@ -284,45 +295,98 @@ class Tiling:
             else:
                 if c[1] > a[1]:
                     print("-----caso 2, taglio 1")
-                    crop = imgmat[b[1]:a[1], a[0]:b[0]]
-                    idx = list(range(c[1] + 1, d[1] + 1))
-                    idy = list(range(a[0], b[0]))
-                    tmp = imgmat[np.ix_(idx, idy)]
-                    ids = crop != 0
-                    tmp[ids] = crop[ids]
-                    imgmat[np.ix_(idx, idy)] = tmp
+                    imgmat = self.cut_paste(imgmat, b[1], a[1], a[0], b[0], c[1]+1, d[1]+1, a[0], b[0])
+                    # crop = imgmat[b[1]:a[1], a[0]:b[0]]
+                    # idx = list(range(c[1] + 1, d[1] + 1))
+                    # idy = list(range(a[0], b[0]))
+                    # tmp = imgmat[np.ix_(idx, idy)]
+                    # ids = crop != 0
+                    # tmp[ids] = crop[ids]
+                    # imgmat[np.ix_(idx, idy)] = tmp
                     sty = a[1]
                     endy = d[1]
                 else:
-                    print("-----caso 2, tagli 2")
-                    crop = imgmat[b[1]:c[1], a[0]:b[0]]
-                    dy = c[1]-b[1]
-                    idx = list(range(c[1] + 1, c[1] + 1 + dy))
-                    idy = list(range(a[0], b[0]))
-                    tmp = imgmat[np.ix_(idx, idy)]
-                    ids = crop != 0
-                    tmp[ids] = crop[ids]
-                    imgmat[np.ix_(idx, idy)] = tmp
+                    print("-----caso 2, taglio 2")
+                    dy = c[1] - b[1]
+                    imgmat = self.cut_paste(imgmat, b[1], c[1], a[0], b[0], c[1]+1, c[1]+dy+1, a[0], b[0])
+                    # crop = imgmat[b[1]:c[1], a[0]:b[0]]
+                    # dy = c[1] - b[1]
+                    # idx = list(range(c[1] + 1, c[1] + 1 + dy))
+                    # idy = list(range(a[0], b[0]))
+                    # tmp = imgmat[np.ix_(idx, idy)]
+                    # ids = crop != 0
+                    # tmp[ids] = crop[ids]
+                    # imgmat[np.ix_(idx, idy)] = tmp
 
-                    crop2 = imgmat[c[1]+dy:d[1], a[0]:b[0]]
-                    dy2 = d[1]-(c[1]+dy)
-                    idx2 = list(range(a[1] - dy2, a[1]))
-                    idy2 = idy
-                    tmp2 = imgmat[np.ix_(idx2, idy2)]
-                    ids2 = crop2 != 0
-                    tmp2[ids2] = crop2[ids2]
-                    imgmat[np.ix_(idx2, idy2)] = tmp2
+                    dy2 = d[1] - (c[1] + dy)
+                    imgmat = self.cut_paste(imgmat, c[1]+dy, d[1], a[0], b[0], a[1]-dy2, a[1], a[0], b[0])
+                    # crop2 = imgmat[c[1] + dy:d[1], a[0]:b[0]]
+                    # dy2 = d[1] - (c[1] + dy)
+                    # idx2 = list(range(a[1] - dy2, a[1]))
+                    # idy2 = idy
+                    # tmp2 = imgmat[np.ix_(idx2, idy2)]
+                    # ids2 = crop2 != 0
+                    # tmp2[ids2] = crop2[ids2]
+                    # imgmat[np.ix_(idx2, idy2)] = tmp2
 
                     sty = c[1]
-                    endy = d[1]-dy2
+                    endy = d[1] - dy2
 
-
-            new_img = Image.fromarray(imgmat).crop((stx, sty, endx, endy))
-        else:
-            new_img = new_img.crop((minx, miny, maxx + 1, maxy + 1))
+            # img = Image.fromarray(imgmat).crop((stx, sty, endx, endy))
+        elif a[1] == b[1]:
+            #     ____________
+            #     \           \
+            #      \           \
+            #       ------------
+            stx = a[0]
+            endx = b[0]
+            sty = a[1]
+            endy = c[1]
+            if a[0] < d[0]:
+                if d[0] < b[0]:
+                    print("-----caso 3, taglio 1")
+                    imgmat = self.cut_paste(imgmat, b[1], c[1]+1, b[0], c[0]+1, a[1], c[1]+1, a[0]-1, d[0])
+                else:
+                    print("-----caso 3, taglio 2")
+                    dx = c[0] - d[0]
+                    imgmat = self.cut_paste(imgmat, a[1], c[1]+1, d[0], c[0], a[1], c[1]+1, d[0]-dx-1, d[0]-1)
+                    dx2 = (d[0] - dx) - a[0]
+                    # print(dx2, d[0]-b[0])
+                    imgmat = self.cut_paste(imgmat, a[1], d[1]+1, a[0], a[0]+dx2, a[1], d[1]+1, b[0]+1, b[0]+dx2+1)
+                    stx = d[0]-dx
+                    endx = d[0]
+            else:
+                if a[0] < c[0]:
+                    print("-----caso 4, taglio 1")
+                    imgmat = self.cut_paste(imgmat, b[1], c[1], c[0], b[0], b[1], c[1], d[0]-1, a[0]-1)
+                    stx = d[0]
+                    endx = c[0]
+                else:
+                    print("-----caso 4, taglio 2")
+                    dx = b[0] - a[0]
+                    imgmat = self.cut_paste(imgmat, a[1], c[1], a[0], b[0], a[1], c[1], a[0]-dx-1, a[0]-1)
+                    dx2 = a[0] - c[0]
+                    imgmat = self.cut_paste(imgmat, a[1], c[1]+1, d[0], d[0]+dx2, a[1], c[1]+1, c[0]+1, c[0]+dx2+1)
+                    print(a[1], d[1], c[0]+1, c[0]+dx2+1)
+                    stx = a[0]-dx
+                    endx = a[0]
+        img = Image.fromarray(imgmat).crop((stx, sty, endx+1, endy+1))
+        # else:
+        #     new_img = new_img.crop((minx, miny, maxx + 1, maxy + 1))
         #     mask.save("mask.png")
+        return img
+    @staticmethod
+    def cut_paste(imgmat, s1_r, e1_r, s1_c, e1_c, s2_r, e2_r, s2_c, e2_c):
 
-        return new_img
+        crop = imgmat[s1_r:e1_r, s1_c:e1_c]
+        idx = list(range(s2_r, e2_r))
+        idy = list(range(s2_c, e2_c))
+        tmp = imgmat[np.ix_(idx, idy)]
+        ids = crop != 0
+        tmp[ids] = crop[ids]
+        imgmat[np.ix_(idx, idy)] = tmp
+
+        return imgmat
 
     def start_search(self):
         og_img = np.array(self.image)
@@ -482,11 +546,11 @@ class Tiling:
                 #     name = os.path.splitext(img_name)[0] + "_Module" + os.path.splitext(img_name)[1]
                 #     self.save_img(m, name)
             else:
-                module_save = self._get_masked_img(self.image, tpx[0], rpx[0],
-                                                   rpx[-2], lpx[-2],
-                                                   tpx + rpx + bpx[::-2] + lpx[::-2])
+                # module_save = self._get_masked_img(self.image, tpx[0], rpx[0],
+                #                                    rpx[-2], lpx[-2],
+                #                                    tpx + rpx + bpx[::-2] + lpx[::-2])
                 #TODO ritaglia modulo e rendilo quadrato se shear in una sola dimensione
-                self.save_img(module_save, iname + 'module_shear.png')
+                self.save_img(module_img, iname + 'module_shear.png')
 
             # rrrrr = self._get_masked_img(self.left_border.A, self.left_border.B,
             #                              self.left_border.C, self.left_border.D)
