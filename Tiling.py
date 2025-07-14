@@ -1,6 +1,5 @@
 import os
 import os.path
-from copy import copy
 from os import listdir
 from os.path import isfile, join
 import argparse
@@ -14,7 +13,7 @@ from tkinter import messagebox
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
 from datetime import datetime
-
+from copy import deepcopy
 from skimage.draw import line
 
 import Selection
@@ -227,7 +226,6 @@ class Tiling:
         miny = min(a[1], b[1], c[1], d[1])
         maxy = max(a[1], b[1], c[1], d[1])
         new_img = Image.composite(image, background, mask)
-        new_img.crop((minx, miny, maxx + 1, maxy + 1)).save(OUT_DIR + "zzz.png")
         # if px is not None: # solo per testing
         #     testimg = copy(self.image)
         #     testdr = ImageDraw.Draw(testimg)
@@ -235,6 +233,7 @@ class Tiling:
         #     testimg.save("test.png")
         #     new_img.save("composite.png")
         if a[0] == d[0] or a[1] == b[1]:
+            new_img.crop((minx, miny, maxx + 1, maxy + 1)).save(OUT_DIR+os.path.splitext(self.filename)[0] + "_" + "OG_Module.png")
             new_img = self.reshape_module(a, b, c, d, new_img)
         else:
             new_img = new_img.crop((minx, miny, maxx + 1, maxy + 1))
@@ -332,6 +331,7 @@ class Tiling:
         #     new_img = new_img.crop((minx, miny, maxx + 1, maxy + 1))
         #     mask.save("mask.png")
         return img
+
     @staticmethod
     def cut_paste(imgmat, s1_r, e1_r, s1_c, e1_c, s2_r, e2_r, s2_c, e2_c):
 
@@ -507,7 +507,7 @@ class Tiling:
                 #                                    rpx[-2], lpx[-2],
                 #                                    tpx + rpx + bpx[::-2] + lpx[::-2])
                 #TODO ritaglia modulo e rendilo quadrato se shear in una sola dimensione
-                self.save_img(module_img, iname + 'module_shear.png')
+                self.save_img(module_img, iname + 'Module.png')
 
             # rrrrr = self._get_masked_img(self.left_border.A, self.left_border.B,
             #                              self.left_border.C, self.left_border.D)

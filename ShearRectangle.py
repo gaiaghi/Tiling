@@ -37,7 +37,6 @@ class ShearRectangle(SelectionObject):
         self.mat = None
         self.mat_index = None
 
-
         # Options for areas outside rectanglar selection.
         select_opts1 = self.select_opts.copy()  # Avoid modifying passed argument.
         select_opts1.update(state=tk.HIDDEN)  # Hide initially.
@@ -185,7 +184,6 @@ class ShearRectangle(SelectionObject):
                       self.canvas.create_line(imin_x, imax_y, imin_x, imin_y, **select_opts2, tags=("line",)),  #d-a
                       )
 
-
     def _update_coordinates(self):
         box_image = self.canvas.coords(self.container)  # get image area
         box_img_int = tuple(map(int, box_image))
@@ -256,15 +254,80 @@ class ShearRectangle(SelectionObject):
         self.mat = mat
         return mat
 
-
     def tile_image(self, tile: Image, coords=None, xrepeat=3, yrepeat=3):
         og_w = tile.size[0]
         og_h = tile.size[1]
-        tiled = Image.new('RGBA', (og_w * xrepeat, og_h * yrepeat))
+        tiled = Image.new('RGBA', (og_w * (xrepeat), og_h * (yrepeat)))
 
+        coords = [(x[0] - coords[0][0], x[1] - coords[0][1]) for x in coords]
+        delta_x = np.asarray(coords[1]) - np.asarray(coords[0])
+        delta_y = np.asarray(coords[3]) - np.asarray(coords[0])
+
+        if coords[0][1] == coords[1][1]:
+            tiled = self._tiling_rows(coords, yrepeat, xrepeat, delta_x, delta_y, og_w, np.array([(og_w, 0)]), tile,
+                                      tiled)
+        elif coords[0][0] == coords[3][0]:
+            tiled = self._tiling_columns(coords, yrepeat, xrepeat, delta_x, delta_y, og_h, np.array([0, og_h]), tile,
+                                         tiled)
+        else:
+            tiled = self._tiling_par(coords, yrepeat, xrepeat, tile, tiled)
+        nome1 = "tilll2.png"
+        tiled.save(nome1)
+        # a = tuple(init_coords[0])
+        # b = tuple(map(sum, zip(a, np.multiply(delta_x, 3))))
+        # c = tuple(map(sum, zip(b, np.multiply(delta_y, 3))))
+        # d = tuple(map(sum, zip(a, np.multiply(delta_y, 3))))
+        # minx = min(a[0], b[0], c[0], d[0])
+        # maxx = max(a[0], b[0], c[0], d[0])
+        # miny = min(a[1], b[1], c[1], d[1])
+        # maxy = max(a[1], b[1], c[1], d[1])
+        # tiled = tiled.crop((minx, miny, maxx, maxy))
+
+        return tiled
+
+    def _tiling_rows(self, coords, r_num, c_col, delta_x, delta_y, w, w_array, tile, tiled):
+        for rr in range(r_num):
+            prev = copy(coords)
+            if delta_x[0] > 0:
+                while coords[0][0] > 0:
+                    coords = coords - w_array
+            while coords[0][0] < c_col * w:
+                tiled.paste(im=tile, box=tuple(coords[0]), mask=tile)
+                a = coords[1]
+                b = tuple(map(sum, zip(coords[1], delta_x)))
+                c = tuple(map(sum, zip(b, delta_y)))
+                d = tuple(map(sum, zip(a, delta_y)))
+                coords = [a, b, c, d]
+            a = prev[3]
+            b = prev[2]
+            c = tuple(map(sum, zip(b, delta_y)))
+            d = tuple(map(sum, zip(a, delta_y)))
+            coords = [a, b, c, d]
+        return tiled
+
+    def _tiling_columns(self, coords, r_num, c_col, delta_x, delta_y, h, h_array, tile, tiled):
+        for cc in range(c_col):
+            prev = copy(coords)
+            if delta_x[1] > 0:
+                while coords[0][1] > 0:
+                    coords = coords - h_array
+            while coords[0][1] < r_num * h:
+                tiled.paste(im=tile, box=tuple(coords[0]), mask=tile)
+                a = coords[3]
+                b = coords[2]
+                c = tuple(map(sum, zip(b, delta_y)))
+                d = tuple(map(sum, zip(a, delta_y)))
+                coords = [a, b, c, d]
+            a = prev[1]
+            d = prev[2]
+            b = tuple(map(sum, zip(a, delta_x)))
+            c = tuple(map(sum, zip(d, delta_x)))
+            coords = [a, b, c, d]
+        return tiled
+
+    def _tiling_par(self, coords, yrepeat, xrepeat, tile, tiled):
         mins = np.min(np.asarray(coords), axis=0)
         coords = coords - mins
-        init_coords = copy(coords)
         delta_x = np.asarray(coords[1]) - np.asarray(coords[0])
         delta_y = np.asarray(coords[3]) - np.asarray(coords[0])
 
@@ -282,15 +345,4 @@ class ShearRectangle(SelectionObject):
             c = tuple(map(sum, zip(b, delta_y)))
             d = tuple(map(sum, zip(a, delta_y)))
             coords = [a, b, c, d]
-
-        # a = tuple(init_coords[0])
-        # b = tuple(map(sum, zip(a, np.multiply(delta_x, 3))))
-        # c = tuple(map(sum, zip(b, np.multiply(delta_y, 3))))
-        # d = tuple(map(sum, zip(a, np.multiply(delta_y, 3))))
-        # minx = min(a[0], b[0], c[0], d[0])
-        # maxx = max(a[0], b[0], c[0], d[0])
-        # miny = min(a[1], b[1], c[1], d[1])
-        # maxy = max(a[1], b[1], c[1], d[1])
-        # tiled = tiled.crop((minx, miny, maxx, maxy))
-
         return tiled
