@@ -72,6 +72,7 @@ class MousePositionTracker(tk.Frame):
         self.hide()  # Hide cross-hairs.
         self.reset()
 
+
 class AutoScrollbar(ttk.Scrollbar):
     """ A scrollbar that hides itself if it's not needed. Works only for grid geometry manager """
 
@@ -92,7 +93,7 @@ class AutoScrollbar(ttk.Scrollbar):
 class CanvasImage:
     """ Display and zoom image """
 
-    def __init__(self, placeholder, path=None, img: Image.Image = None, coords=None, selection_mode = 2):
+    def __init__(self, placeholder, path=None, img: Image.Image = None, coords=None, selection_mode=1):
         """ Initialize the ImageFrame """
         if path is None and img is None:
             sys.exit('Cannot open image')
