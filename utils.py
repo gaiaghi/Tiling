@@ -19,6 +19,12 @@ class TwoDPoint(object):
     def __str__(self):
         return "(" + str(self.x) + "," + str(self.y) + ")"
 
+    def __eq__(self, other):
+        if self.x == other.x and self.y == other.y:
+            return True
+        else:
+            return False
+
 
 class Coordinates(object):
     def __init__(self, a: tuple[int, int], b: tuple[int, int], c: tuple[int, int], d: tuple[int, int]):
@@ -75,4 +81,3 @@ class Coordinates(object):
 
     def __str__(self):
         return "[" + str(self.A) + "," + str(self.B) + "," + str(self.C) + "," + str(self.D) + "]"
-

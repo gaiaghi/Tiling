@@ -1,7 +1,7 @@
 from settings import *
 import os
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, simpledialog
 from tkinter import messagebox
 from os import listdir
 from os.path import isfile, join
@@ -11,6 +11,8 @@ from CanvasImage import CanvasImage
 from Tiling import Tiling
 from PIL import Image
 from Subpatch import Subpatch
+from utils import TwoDPoint
+
 
 class Application(tk.Frame):
     # Default selection object options.
@@ -47,7 +49,8 @@ class Application(tk.Frame):
         menu_file.add_command(label="Open single image...", accelerator="Ctrl+O", command=self.load_image)
         menu_file.add_command(label="Open image map in folder...", accelerator="Ctrl+F", command=self.load_folder)
         self.menubar.add_cascade(menu=menu_edit, label='Edit')
-        menu_edit.add_command(label="Subpatch", command=self.start_subpatch)
+        menu_edit.add_command(label="Subpatch",  accelerator="Ctrl+P", command=self.start_subpatch)
+        menu_edit.add_command(label="Restore image",  accelerator="Ctrl+R", command=self.restore_og_image)
         self.menubar.add_cascade(menu=menu_tiling, label='Tiling')
         menu_tiling.add_command(label="Start Tiling", accelerator="Ctrl+T", command=self.start_tiling)
         menu_tiling.add_command(label="Update image with tiled texture", accelerator="Ctrl+U",
@@ -77,6 +80,10 @@ class Application(tk.Frame):
         parent.bind_all("<Control-T>", self.start_tiling)
         parent.bind_all("<Control-u>", self.update_image)
         parent.bind_all("<Control-U>", self.update_image)
+        parent.bind_all("<Control-P>", self.start_subpatch)
+        parent.bind_all("<Control-p>", self.start_subpatch)
+        parent.bind_all("<Control-R>", self.restore_og_image)
+        parent.bind_all("<Control-r>", self.restore_og_image)
 
         menu_file.add_separator()
         menu_file.add_command(label="Exit", command=root.destroy)
@@ -163,9 +170,23 @@ class Application(tk.Frame):
         self.selection_value = self.selection_mode.get()
         self.update_canvas(path=self.imgpath)
 
-    def start_subpatch(self):
-        img = self.imgpath
-        subpatch = Subpatch(img, self.canvas.selection_obj.start, self.canvas.selection_obj.end)
+    def restore_og_image(self, event=None):
+        self.update_canvas(path=self.imgpath)
+
+
+    def start_subpatch(self, event=None):
+        # print("start, end ", self.canvas.selection_obj.start, self.canvas.selection_obj.end)
+        # print("canvas size ", self.canvas.imwidth, " ", self.canvas.imheight)
+        if self.canvas.selection_obj.start == TwoDPoint(0,0) and self.canvas.selection_obj.end == TwoDPoint(self.canvas.imwidth, self.canvas.imheight):
+            tk.messagebox.showinfo("Subpatch edit", "Select a small area within the image to apply the edit.")
+        else:
+            patch_fr = simpledialog.askfloat("Subpatch parameters", "Patch fraction (patch size with respect to error region)", initialvalue=1)
+            if patch_fr is not None:
+                img = self.imgpath
+                print("PATCH FRACTION ", patch_fr)
+                subpatch = Subpatch(img, self.canvas.selection_obj.start, self.canvas.selection_obj.end, patch_fraction=(1/patch_fr)).subpatching()
+                # subpatch = Subpatch(img, (500,500), (600,600), patch_fraction=patch_fr).subpatching()
+                self.update_canvas(img=subpatch)
         #TODO finisci
 
 
@@ -238,7 +259,7 @@ if __name__ == '__main__':
     parser.add_argument("-b", "--Batch", help="Command line execution.",
                         nargs='?', default=None, const=True, type=bool)
     parser.add_argument("-i", "--Image", help="Path to the image to open.", nargs='?',
-                        default="img/2fili.png", const="img/2fili.png", type=str)
+                        default="img/damascato.jpg", const="img/img/damascato.jpg", type=str)
     # parser.add_argument("-b", "--Batch", help="Batch mode.")
     # Read arguments from command line
     args = parser.parse_args()
