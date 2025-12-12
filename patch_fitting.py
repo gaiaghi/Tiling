@@ -265,23 +265,33 @@ def update_seam_map(G: nx.Graph, seam_map: SeamMap, src_set: set, dst_set: set, 
                 seam_map.top_nbr_cost[curr.idx] = 0
 
 
-def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_region: Region, region_size=None, i=None,
-                  use_old_cut=True, use_grad=False, blur=True):
+def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_region: Region, maps=None, maps_path=None,
+                  region_size=None, iter=None, use_old_cut=True, use_grad=False, blur=True):
+    off_x, off_y = offset
     if use_old_cut: use_grad = False
+    if maps is None: maps = []
+    if maps_path is None: maps_path = []
+    orig_maps = []
+    tran_ims = []
+    for i in range(len(maps_path)):
+        orig_maps.append(np.array(Image.open(maps_path[i])))
+        tran_ims.append(np.array(ImageChops.offset(Image.fromarray(orig_maps[i].astype(np.uint8)), off_y, off_x)))
 
-    # background and mask - for blurring
-    h_og, w_og, _ = im_input.shape
-    img_bg = np.copy(im_src)
-    print(img_bg.shape, im_input.shape)
-    img_bg[np.where(src_map == 0)] = im_input[np.where(src_map == 0)]
+    # background and mask - setup for blurring
     ud_area = np.full(im_src.shape, 255, dtype=np.uint8)
     ud_mask = np.full(im_src[:, :, 0].shape, 0, dtype=np.uint8)
+    if blur:
+        img_bg = np.copy(im_src)
+        img_bg[np.where(src_map == 0)] = im_input[np.where(src_map == 0)]
+        prev_maps = []
+        for m in maps:
+            prev_maps.append(np.copy(m))
 
-    (G, im_dst, dst_map) = build_graph(im_src, src_map, im_input, offset, seam_map, error_region, region_size, i,
+    (G, im_dst, dst_map) = build_graph(im_src, src_map, im_input, offset, seam_map, error_region, region_size, iter,
                                        use_old_cut,
                                        use_grad)
 
-    Image.fromarray(im_dst.astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_im_dst_" + str(i) + ".png")
+    Image.fromarray(im_dst.astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_im_dst_" + str(iter) + ".png")
     print("-----finito costruzione grafo")
 
 
@@ -313,9 +323,8 @@ def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_re
         for rr in right:
             if rr != (height, width):
                 img_left[rr] = (0, 1, 0)
-        Image.fromarray((255 * img_left).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_left_right_" + str(i) + ".png")
+        Image.fromarray((255 * img_left).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_left_right_" + str(iter) + ".png")
 
-    off_x, off_y = offset
     print("°°°°°°°°°°° offset ", off_x, off_y)
     copy_region = Region(error_region.x1, error_region.y1, error_region.x2, error_region.y2)
     copy_region.clip(0, 0, height, width)
@@ -324,8 +333,9 @@ def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_re
 
     for curr in copy_region.points_iter():
         if not G or not G.has_node(curr.idx):
-
             im_src[curr.idx] = im_dst[curr.idx]
+            for i in range(len(maps)):
+                maps[i][curr.idx] = np.array(tran_ims[i])[curr.idx]
             ud_area[curr.idx] = im_dst[curr.idx]
             ud_mask[curr.idx] = 255
             seam_map.offset[curr.idx] = offset
@@ -335,8 +345,9 @@ def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_re
             seam_map.left_nbr_cost[curr.idx] = 0
         else:
             if curr.idx in right:
-
                 im_src[curr.idx] = im_dst[curr.idx]
+                for i in range(len(maps)):
+                    maps[i][curr.idx] = np.array(tran_ims[i])[curr.idx]
                 ud_area[curr.idx] = im_dst[curr.idx]
                 ud_mask[curr.idx] = 255
 
@@ -353,44 +364,30 @@ def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_re
                     update_seam_map(G, seam_map, right, left, bottom_nbr, im_src, False)
 
     im3 = Image.fromarray(ud_area.astype(np.uint8))
-    img_patch = np.copy(ud_area)
 
-
-    # if (error_region.x1-10) > 0 and (error_region.x1 - off_x-10 > 0):
-    #     if (error_region.y1-10 > 0) and (error_region.y1 - off_y-10 > 0):
-    #         img_patch[error_region.x1-15:error_region.x2+15, error_region.y1-15:error_region.y2+15] = im_input[
-    #                                                 error_region.x1 - off_x-15:error_region.x1 - off_x + h+15,
-    #                                                 error_region.y1 - off_y-15:error_region.y1 - off_y + w+15]
-
-
-    #TODO numero di pixel in più da compiare varia perchè 15 non è abbastanza per patch di 500 ---> risolvi
-
-    # traslo l'immagine di input dell'offset scelto così estraggo l'immagine patch direttamente con le sue coordinate
-    tran_im_og = ImageChops.offset(Image.fromarray(im_input.astype(np.uint8)), off_x, off_y)
-    # tran_im_og.show()
-    tran_im_og = np.array(tran_im_og, dtype=np.uint8)
-    # img_patch[max(0, error_region.x1 - 5):min(error_region.x2 + 5, h_og),
-    #           max(0, error_region.y1 - 5):min(error_region.y2 + 5, h_og)] = tran_im_og[
-    #                                                                           max(0, error_region.x1 - 5):min(
-    #                                                                               error_region.x2 + 5, h_og),
-    #                                                                           max(0, error_region.y1 - 5):min(
-    #                                                                               error_region.y2 + 5, h_og)]
 
     if blur:
+        # traslo l'immagine di input dell'offset scelto così estraggo l'immagine patch direttamente con le sue coordinate
+        tran_im_og = ImageChops.offset(Image.fromarray(im_input.astype(np.uint8)), off_y, off_x)
+        # tran_im_og.show()
+        tran_im_og = np.array(tran_im_og, dtype=np.uint8)
         # scelto empiricamente
         blr_value = ((w+h)/2) / 100 + 0.5
         print("blur value: ", blr_value)
         mask = Image.fromarray(ud_mask.astype(np.uint8), mode="L")
         blr_mask = mask.filter(ImageFilter.GaussianBlur(blr_value))
         img_prev = Image.fromarray(img_bg.astype(np.uint8))
-        # img_upd = Image.fromarray(img_patch.astype(np.uint8))
         img_upd = Image.fromarray(tran_im_og.astype(np.uint8))
         # blr_mask.show()
-        blurred = Image.composite(img_upd.convert("RGBA"), img_prev.convert("RGBA"), blr_mask).show()
+        # Image.composite(img_upd.convert("RGBA"), img_prev.convert("RGBA"), blr_mask).show()
         im_src = np.array((Image.composite(img_upd.convert("RGBA"), img_prev.convert("RGBA"), blr_mask)).convert("RGB"))
+        for i in range(len(maps)):
+            map_img = Image.fromarray(maps[i].astype(np.uint8))
+            map_prev = Image.fromarray(prev_maps[i].astype(np.uint8))
+            maps[i] = np.array((Image.composite(map_img.convert("RGBA"), map_prev.convert("RGBA"), blr_mask)).convert("RGB"))
         im_src[np.where(src_map == 0)] = 0
 
-    im3.save(OUT_DIR_SUBPATCH+"_updated_area_" + str(i) + ".png")
+    im3.save(OUT_DIR_SUBPATCH+"_updated_area_" + str(iter) + ".png")
 
     # if im3.mode != 'RGBA':
     #     im3 = im3.convert('RGBA')
@@ -709,15 +706,15 @@ def get_offset_subpatch_matching(im_src, src_map, im_input, patch_region: Region
 
     #minimo assoluto (per stampa)
     off_x, off_y = np.unravel_index(cost_map.argmin(), cost_map.shape)
-    print("offset MIN ", off_x, off_y)
+    print("offset costo MIN ", off_x, off_y)
 
     # argmin = np.argmin(cost_map)
 
     # estrazione dei minimi + scelta random
-    epsilon = 0.15
+    epsilon = 0.15 #TODO controlla questa cosa
     mins_x, mins_y = np.where(cost_map < cost_map.min()*(1+epsilon))
     mins_coord = list(zip(mins_x, mins_y))
-    off_x, off_y = random.choice(mins_coord)
+    # off_x, off_y = random.choice(mins_coord)
 
     print("numero di minimi: ", mins_x, mins_y)
     print("cost value MIN ", cost_map[off_x, off_y])

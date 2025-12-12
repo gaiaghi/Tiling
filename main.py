@@ -177,14 +177,25 @@ class Application(tk.Frame):
     def start_subpatch(self, event=None):
         # print("start, end ", self.canvas.selection_obj.start, self.canvas.selection_obj.end)
         # print("canvas size ", self.canvas.imwidth, " ", self.canvas.imheight)
+        dh = self.canvas.selection_obj.end.x - self.canvas.selection_obj.start.x
+        dw = self.canvas.selection_obj.end.y - self.canvas.selection_obj.start.y
+
         if self.canvas.selection_obj.start == TwoDPoint(0,0) and self.canvas.selection_obj.end == TwoDPoint(self.canvas.imwidth, self.canvas.imheight):
             tk.messagebox.showinfo("Subpatch edit", "Select a small area within the image to apply the edit.")
+        # due controlli: l'area selezionata non può essere troppo vicina al bordo dell'immagine dx e top altrimenti non c'è abbastanza
+        # area di confronto per la ricerca del patch.
+        #TODO si può rimuovere il controllo flippando tutto e prendendo quindi l'angolo opposto
+        elif self.canvas.selection_obj.start.x < dh/5:
+            tk.messagebox.showinfo("Subpatch edit", "The selected area is too close to the right border of the image.")
+        elif self.canvas.selection_obj.start.y < dw / 5:
+            tk.messagebox.showinfo("Subpatch edit", "The selected area is too close to the top border of the image.")
         else:
             patch_fr = simpledialog.askfloat("Subpatch parameters", "Patch fraction (patch size with respect to error region)", initialvalue=1)
             if patch_fr is not None:
                 img = self.imgpath
                 print("PATCH FRACTION ", patch_fr)
-                subpatch = Subpatch(img, self.canvas.selection_obj.start, self.canvas.selection_obj.end, patch_fraction=(1/patch_fr)).subpatching()
+                subpatch = Subpatch(img, self.canvas.selection_obj.start, self.canvas.selection_obj.end,
+                                    maps_path=self.folder_maps, patch_fraction=(1/patch_fr), blur=False).subpatching()
                 # subpatch = Subpatch(img, (500,500), (600,600), patch_fraction=patch_fr).subpatching()
                 self.update_canvas(img=subpatch)
         #TODO finisci

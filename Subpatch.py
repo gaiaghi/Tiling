@@ -6,10 +6,11 @@ from patch_fitting import *
 
 class Subpatch:
 
-    def __init__(self, im_name, region_s, region_e, method='subpatch', use_old_cut=False, use_grad=True,
+    def __init__(self, im_name, region_s, region_e, method='subpatch', maps_path=None, use_old_cut=False, use_grad=True,
                  expansion=False, expansion_ratio=1.5, patch_fraction=1.2, blur=True):
 
         self.im_name = im_name
+        self.maps_path = maps_path
         self.place_method = method  # random, entire, subpatch, auto
         self.error_region = Region(region_s[1], region_s[0], region_e[1], region_e[0]) #r x c
         self.use_old_cut = use_old_cut
@@ -21,11 +22,19 @@ class Subpatch:
         self.im_src = None
         self.seam_map = None
         self.src_map = None
+        self.maps = []
 
         self.im = Image.open(im_name).convert('RGB')  # --->  width x height
         print(self.im.size)
         self.im_input = np.array(self.im, dtype=np.uint8)  # --->  row x column
         print(self.im_input.shape)
+
+        if self.maps_path is not None:
+            for i in range(len(self.maps_path)):
+                self.maps.append(np.array(Image.open(self.maps_path[i])))
+            print("Lenght maps", len(self.maps))
+        # else:
+        #     self.maps.append(np.array(self.im))
 
         self.h, self.w, _ = self.im_input.shape
         print("h,w ", self.h, self.w)
@@ -77,13 +86,18 @@ class Subpatch:
             elif self.place_method == 'subpatch':
                 offset = get_offset_subpatch_matching(self.im_src, self.src_map, self.im_input, patch_region, patch_size, i)
 
-            self.im_src = patch_fitting(self.im_src, self.src_map, self.im_input, offset, self.seam_map, patch_region, patch_size, i,
-                          self.use_old_cut,
-                          self.use_grad, self.blur)
+            self.im_src = patch_fitting(self.im_src, self.src_map, self.im_input, offset, self.seam_map,
+                                        patch_region, self.maps, self.maps_path, patch_size, i, self.use_old_cut,
+                                        self.use_grad, self.blur)
 
             sp_im = Image.fromarray(self.im_src.astype(np.uint8))
             sp_im.save(
                 '%s-%s-%d.png' % (OUT_DIR_SUBPATCH + os.path.basename(self.im_name).split('.')[0], self.place_method, i))
+            for mm in range(len(self.maps)):
+                sp_im = Image.fromarray(self.maps[mm].astype(np.uint8))
+                sp_im.save(
+                    '%s-%s-m%d.png' % (
+                    OUT_DIR_SUBPATCH + os.path.basename(self.maps_path[mm]).split('.')[0], self.place_method, i))
             i += 1
 
         end = time.time()
