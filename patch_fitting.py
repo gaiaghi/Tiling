@@ -711,16 +711,20 @@ def get_offset_subpatch_matching(im_src, src_map, im_input, patch_region: Region
     # argmin = np.argmin(cost_map)
 
     # estrazione dei minimi + scelta random
-    epsilon = 0.15 #TODO controlla questa cosa
+    epsilon = 0.15 #TODO parametrizzare per l'utente?
     mins_x, mins_y = np.where(cost_map < cost_map.min()*(1+epsilon))
     mins_coord = list(zip(mins_x, mins_y))
-    # off_x, off_y = random.choice(mins_coord)
+    off_x, off_y = random.choice(mins_coord)
 
-    print("numero di minimi: ", mins_x, mins_y)
-    print("cost value MIN ", cost_map[off_x, off_y])
-    # print("altri indici ", ii)
-    print("offset estratto ", off_x, off_y)
-    print("cost value ", cost_map[off_x, off_y])
+    # perc = np.percentile(cost_map, 0.02)
+    # mins_x, mins_y = np.where(cost_map<perc)
+    # off_x, off_y = random.choice(list(zip(mins_x, mins_y)))
+
+    print("cost value MIN ", (off_x, off_y), cost_map[off_x, off_y])
+    # print("percentile ", perc)
+    print("**altri minimi: ", len(list(zip(mins_x, mins_y))), list(zip(mins_x, mins_y)))
+    print("offset random ", off_x, off_y)
+    print("cost offset random ", cost_map[off_x, off_y])
 
     x, y = off_x + off_x_min, off_y + off_y_min
 

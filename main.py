@@ -14,6 +14,103 @@ from Subpatch import Subpatch
 from utils import TwoDPoint
 
 
+class Dialog(tk.Toplevel):
+
+    def __init__(self, parent):
+
+        tk.Toplevel.__init__(self, parent)
+        self.transient(parent)
+        self.title("Subpatch parameters")
+        self.parent = parent
+        self.result = None
+        body = tk.Frame(self)
+        self.initial_focus = self.body(body)
+        body.pack(padx=5, pady=5)
+        self.buttonbox()
+        self.grab_set()
+        if not self.initial_focus:
+            self.initial_focus = self
+        self.protocol("WM_DELETE_WINDOW", self.cancel)
+        self.geometry("+%d+%d" % (parent.winfo_rootx() + 50,
+                                  parent.winfo_rooty() + 50))
+        self.initial_focus.focus_set()
+        self.wait_window(self)
+
+    def body(self, master):
+        # create dialog body.  return widget that should have
+        # initial focus.  this method should be overridden
+        pass
+
+    def buttonbox(self):
+        # add standard button box. override if you don't want the
+        # standard buttons
+        box = tk.Frame(self)
+        w = tk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+        w = tk.Button(box, text="Cancel", width=10, command=self.cancel)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+        self.bind("<Return>", self.ok)
+        self.bind("<Escape>", self.cancel)
+        box.pack()
+
+    def ok(self, event=None):
+        if not self.validate():
+            self.initial_focus.focus_set()  # put focus back
+            return
+        self.withdraw()
+        self.update_idletasks()
+        self.apply()
+        self.cancel()
+
+    def cancel(self, event=None):
+        # put focus back to the parent window
+        self.parent.focus_set()
+        self.destroy()
+
+    def validate(self):
+        return 1  # override
+
+    def apply(self):
+        pass
+
+
+class MultiDialog(Dialog):
+
+    def __init__(self, parent):
+        self.cb = None
+        self.e1 = None
+        self.CheckVar = tk.IntVar(value=1)
+        self.EntryVar = tk.StringVar(value="1")
+        super().__init__(parent)
+
+    def body(self, master):
+        tk.Label(master, text="Patch fraction (patch size \nwith respect to error region)").grid(row=0, padx=10)
+        # tk.Label(master, text="Second:").grid(row=1, sticky=tk.W)
+
+        self.e1 = tk.Entry(master, textvariable=self.EntryVar)
+        # self.e2 = tk.Entry(master)
+        self.e1.grid(row=0, column=1, padx=10)
+        # self.e2.grid(row=1, column=1)
+        self.cb = tk.Checkbutton(master, text="Blur cut edges", variable=self.CheckVar)
+        self.cb.grid(row=1, columnspan=1, sticky=tk.W)
+        return self.e1  # initial focus
+
+    def validate(self):
+        try:
+            fraction = float(self.EntryVar.get())
+            blur = bool(self.CheckVar.get())
+            self.result = fraction, blur
+            print("Dialog result", self.result)
+            return 1
+        except ValueError:
+            tk.messagebox.showwarning(
+                "Bad input",
+                "Illegal values, please try again"
+            )
+            return 0
+
+
+
 class Application(tk.Frame):
     # Default selection object options.
     SELECT_OPTS = dict(dash=(2, 2), stipple='gray25', fill='white',
@@ -21,7 +118,7 @@ class Application(tk.Frame):
 
     def __init__(self, parent, coords=None, imgpath=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
-
+        self.root = parent
         # default selection mode: rectangle
         self.selection_mode = tk.IntVar()
         self.selection_mode.set(1)
@@ -49,8 +146,8 @@ class Application(tk.Frame):
         menu_file.add_command(label="Open single image...", accelerator="Ctrl+O", command=self.load_image)
         menu_file.add_command(label="Open image map in folder...", accelerator="Ctrl+F", command=self.load_folder)
         self.menubar.add_cascade(menu=menu_edit, label='Edit')
-        menu_edit.add_command(label="Subpatch",  accelerator="Ctrl+P", command=self.start_subpatch)
-        menu_edit.add_command(label="Restore image",  accelerator="Ctrl+R", command=self.restore_og_image)
+        menu_edit.add_command(label="Subpatch", accelerator="Ctrl+P", command=self.start_subpatch)
+        menu_edit.add_command(label="Restore image", accelerator="Ctrl+R", command=self.restore_og_image)
         self.menubar.add_cascade(menu=menu_tiling, label='Tiling')
         menu_tiling.add_command(label="Start Tiling", accelerator="Ctrl+T", command=self.start_tiling)
         menu_tiling.add_command(label="Update image with tiled texture", accelerator="Ctrl+U",
@@ -96,6 +193,7 @@ class Application(tk.Frame):
         # TODO cambia menù a pop up in una tendina del menù sopra
         #  per il salvataggio del crop e per la ricarica dell'immagine iniziale (es: dopo tiling automatico)
         # parent.bind("<Button-3>", self.do_popup)
+
 
     def load_image(self, event=None):
         file_path = filedialog.askopenfilename(title="Open Image...",
@@ -173,33 +271,36 @@ class Application(tk.Frame):
     def restore_og_image(self, event=None):
         self.update_canvas(path=self.imgpath)
 
-
     def start_subpatch(self, event=None):
         # print("start, end ", self.canvas.selection_obj.start, self.canvas.selection_obj.end)
         # print("canvas size ", self.canvas.imwidth, " ", self.canvas.imheight)
         dh = self.canvas.selection_obj.end.x - self.canvas.selection_obj.start.x
         dw = self.canvas.selection_obj.end.y - self.canvas.selection_obj.start.y
 
-        if self.canvas.selection_obj.start == TwoDPoint(0,0) and self.canvas.selection_obj.end == TwoDPoint(self.canvas.imwidth, self.canvas.imheight):
+        if self.canvas.selection_obj.start == TwoDPoint(0, 0) and self.canvas.selection_obj.end == TwoDPoint(
+                self.canvas.imwidth, self.canvas.imheight):
             tk.messagebox.showinfo("Subpatch edit", "Select a small area within the image to apply the edit.")
         # due controlli: l'area selezionata non può essere troppo vicina al bordo dell'immagine dx e top altrimenti non c'è abbastanza
         # area di confronto per la ricerca del patch.
         #TODO si può rimuovere il controllo flippando tutto e prendendo quindi l'angolo opposto
-        elif self.canvas.selection_obj.start.x < dh/5:
+        elif self.canvas.selection_obj.start.x < dh / 5:
             tk.messagebox.showinfo("Subpatch edit", "The selected area is too close to the right border of the image.")
         elif self.canvas.selection_obj.start.y < dw / 5:
             tk.messagebox.showinfo("Subpatch edit", "The selected area is too close to the top border of the image.")
         else:
-            patch_fr = simpledialog.askfloat("Subpatch parameters", "Patch fraction (patch size with respect to error region)", initialvalue=1)
-            if patch_fr is not None:
+            d_inputs = MultiDialog(root)
+            # patch_fr = simpledialog.askfloat("Subpatch parameters",
+            #                                  "Patch fraction (patch size with respect to error region)", initialvalue=1)
+            if d_inputs is not None:
+                patch_fr, blur_var = d_inputs.result
+                print("parch_fr, blur_var", patch_fr, blur_var)
                 img = self.imgpath
-                print("PATCH FRACTION ", patch_fr)
+                # print("PATCH FRACTION ", patch_fr)
                 subpatch = Subpatch(img, self.canvas.selection_obj.start, self.canvas.selection_obj.end,
-                                    maps_path=self.folder_maps, patch_fraction=(1/patch_fr), blur=False).subpatching()
+                                    maps_path=self.folder_maps, patch_fraction=(1 / patch_fr), blur=blur_var).subpatching()
                 # subpatch = Subpatch(img, (500,500), (600,600), patch_fraction=patch_fr).subpatching()
                 self.update_canvas(img=subpatch)
         #TODO finisci
-
 
     def start_tiling(self, event=None):
         # if self.tiling is None:
