@@ -1,15 +1,11 @@
 import tkinter as tk
-import math
 from copy import copy
-
 import numpy as np
 from PIL import Image
 from numpy.linalg import norm
 from Selection import SelectionObject
-from utils import TwoDPoint, Coordinates
-from skimage.draw import line
+from utils import TwoDPoint
 
-# SELECT_OPTS = dict(dash=(2, 2),  fill='white')
 SELECT_OPTS = dict(dash=(2, 2), stipple='gray25', fill='white',
                    outline='')
 MIN_DIST = 9
@@ -40,15 +36,11 @@ class ShearRectangle(SelectionObject):
         # Options for areas outside rectanglar selection.
         select_opts1 = self.select_opts.copy()  # Avoid modifying passed argument.
         select_opts1.update(state=tk.HIDDEN)  # Hide initially.
-        # Separate options for area inside rectanglar selection.
-        # select_opts2 = dict(dash=(2, 2), width=2, fill='white', state=tk.HIDDEN)
-        # TODO outside rects
 
         self.rect_setup()
 
         if coords is not None:
             self.update(self.start, self.end)
-            # self.coordinates = Coordinates()
 
         self.canvas.bind("<Shift-Button-1>", self.click_callback_x)
         self.canvas.bind("<Shift-B1-Motion>", self.move_line)
@@ -158,9 +150,7 @@ class ShearRectangle(SelectionObject):
             _, _, x2, y2 = self.canvas.coords(index2)
             self.canvas.coords(index1, x1, y1, ax, ay)
             self.canvas.coords(index2, bx, by, x2, y2)
-            # self.coordinates = ((ax, ay), (bx, by), (x2, y2), (x1, y1))
             self._update_coordinates()
-            # print(self.canvas.coords(element), self.canvas.coords(index1), self.canvas.coords(index2))
             self._show()
 
     def quit(self, event):
@@ -194,35 +184,12 @@ class ShearRectangle(SelectionObject):
                                 box_img_int)
         c = self._coord_mapping(self.canvas.coords(self.rects[2])[0], self.canvas.coords(self.rects[2])[1],
                                 box_img_int)
-        # d = self._coord_mapping(self.canvas.coords(self.rects[3])[0], self.canvas.coords(self.rects[3])[1],
-        #                         box_img_int)
         d = (a[0] + (c[0] - b[0]), a[1] + (c[1] - b[1]))
 
         self.coordinates = (a, b, c, d)
 
         self.start = TwoDPoint(self.coordinates[0][0], self.coordinates[0][1])
         self.end = TwoDPoint(self.coordinates[2][0], self.coordinates[2][1])
-
-    # def matrix(self, p1, p2, p3, p4, mss=None):
-    #     rr, cc = line(int(p1[0]), int(p1[1]), int(p4[0]), int(p4[1]))
-    #     v_line_pixels = list(zip(rr, cc))
-    #     rr, cc = line(int(p1[0]), int(p1[1]), int(p2[0]), int(p2[1]))
-    #     h_line_pixels = list(zip(rr, cc))
-    #     # r, c = p4[1] - p1[1] + 1, p2[0] - p1[0] + 1
-    #     r, c = len(v_line_pixels), len(h_line_pixels)
-    #     if mss is not None:
-    #         print("get  matrix (r, c), p1 p2 -  ", mss, r, c, p1, p2, " - ", p1, p4)
-    #     mat_index = np.zeros((r, c, 2))
-    #     mat_index[:, 0] = v_line_pixels
-    #     mat_index[0] = h_line_pixels
-    #     h_index = [(p[0] - h_line_pixels[0][0], p[1] - h_line_pixels[0][1]) for p in h_line_pixels]
-    #     # v_index = [(p[0]-v_line_pixels[0][0], p[1]-v_line_pixels[0][1]) for p in v_line_pixels]
-    #
-    #     for i in range(1, r):
-    #         for j in range(1, c):
-    #             mat_index[i][j] = mat_index[i][0] + h_index[j]
-    #
-    #     return mat_index
 
     def matrix(self, p1, deltax, deltay, mss=None):
         r, c = len(deltay), len(deltax)
@@ -240,9 +207,6 @@ class ShearRectangle(SelectionObject):
 
     def get_mat(self, img, coord, deltax, deltay, mss=None):
         idx = self.matrix(coord[0], deltax, deltay, mss)
-        # og_img = self.img.convert('RGB')
-        # og_img = np.array(og_img)
-        # og_img = np.array(self.img)
         og_img = np.array(img)
         if og_img.shape[-1] == 3:
             og_img = np.dstack((og_img, np.ones((og_img.shape[0], og_img.shape[1]))))
@@ -273,15 +237,6 @@ class ShearRectangle(SelectionObject):
             tiled = self._tiling_par(coords, yrepeat, xrepeat, tile, tiled)
         nome1 = "tilll2.png"
         tiled.save(nome1)
-        # a = tuple(init_coords[0])
-        # b = tuple(map(sum, zip(a, np.multiply(delta_x, 3))))
-        # c = tuple(map(sum, zip(b, np.multiply(delta_y, 3))))
-        # d = tuple(map(sum, zip(a, np.multiply(delta_y, 3))))
-        # minx = min(a[0], b[0], c[0], d[0])
-        # maxx = max(a[0], b[0], c[0], d[0])
-        # miny = min(a[1], b[1], c[1], d[1])
-        # maxy = max(a[1], b[1], c[1], d[1])
-        # tiled = tiled.crop((minx, miny, maxx, maxy))
 
         return tiled
 

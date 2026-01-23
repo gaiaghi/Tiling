@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# og code by https://github.com/foobar167/
+# modified version of og code by https://github.com/foobar167/
 # Advanced zoom for images of various types from small to huge up to several GB
 import math
 import sys
@@ -122,16 +122,11 @@ class CanvasImage:
 
         # Bind events to the Canvas
         self.canvas.bind('<Configure>', lambda event: self.__show_image())  # canvas is resized
-        # self.canvas.bind('<ButtonPress-1>', self.__move_from)  # remember canvas position
-        # self.canvas.bind('<B1-Motion>',     self.__move_to)  # move canvas to the new position
         self.canvas.bind('<Button-3>', self.__move_from)  # remember canvas position
         self.canvas.bind('<B3-Motion>', self.__move_to)  # move canvas to the new position
         self.canvas.bind('<MouseWheel>', self.__wheel)  # zoom for Windows and MacOS, but not Linux
         self.canvas.bind('<Button-5>', self.__wheel)  # zoom for Linux, wheel scroll down
         self.canvas.bind('<Button-4>', self.__wheel)  # zoom for Linux, wheel scroll up
-
-        # TODO prova bind combinato
-        # self.canvas.bind("<Key> <Button-1>", pressed)
 
         # Handle keystrokes in idle mode, because program slows down on a weak computers,
         # when too many key stroke events in the same time
@@ -178,17 +173,12 @@ class CanvasImage:
         self.__show_image()  # show image on the canvas
         self.canvas.focus_set()  # set focus on the canvas
 
-        # path = "img/basket_normal.png"
+
         if self.path is not None:
             img = Image.open(path)
         else:
             img = self.imgpath
         pht_img = ImageTk.PhotoImage(img)
-        # self.canvas = tk.Canvas(root, width=pht_img.width(), height=pht_img.height(),
-        #                         borderwidth=0, highlightthickness=0)
-        # self.canvas.pack(expand=True)
-        #
-        # self.displayed_img = self.canvas.create_image(0, 0, image=pht_img, anchor=tk.NW)
         self.canvas.pht_img = pht_img  # Keep reference of current PhotoImage
         self.canvas.img = img
         self.canvas.orig = self.canvas.pht_img  # keep reference of original image
@@ -268,12 +258,10 @@ class CanvasImage:
         """ Exception: cannot use place with this widget """
         raise Exception('Cannot use place with the widget ' + self.__class__.__name__)
 
-    # noinspection PyUnusedLocal
     def __scroll_x(self, *args, **kwargs):
         """ Scroll canvas horizontally and redraw the image """
         self.canvas.xview(*args)  # scroll horizontally
         self.__show_image()  # redraw the image
-        # print("scroll x "+str(args))
 
     # noinspection PyUnusedLocal
     def __scroll_y(self, *args, **kwargs):
@@ -324,7 +312,7 @@ class CanvasImage:
                 image = self.__pyramid[max(0, self.__curr_img)].crop(  # crop current img from pyramid
                     (int(x1 / self.__scale), int(y1 / self.__scale),
                      int(x2 / self.__scale), int(y2 / self.__scale)))
-            #
+
             imagetk = ImageTk.PhotoImage(image.resize((int(x2 - x1), int(y2 - y1)), self.__filter))
             imageid = self.canvas.create_image(max(box_canvas[0], box_img_int[0]),
                                                max(box_canvas[1], box_img_int[1]),
@@ -418,25 +406,3 @@ class CanvasImage:
         del self.__pyramid  # delete pyramid variable
         self.canvas.destroy()
         self.__imframe.destroy()
-
-# class MainWindow(ttk.Frame):
-#     """ Main window class """
-#     def __init__(self, mainframe, path):
-#         """ Initialize the main Frame """
-#         ttk.Frame.__init__(self, master=mainframe)
-#         self.master.title('Advanced Zoom v3.0')
-#         self.master.geometry('800x600')  # size of the main window
-#         self.master.rowconfigure(0, weight=1)  # make the CanvasImage widget expandable
-#         self.master.columnconfigure(0, weight=1)
-#         canvas = CanvasImage(self.master, path)  # create widget
-#         canvas.grid(row=0, column=0)  # show widget
-
-# filename = './data/img_plg5.png'  # place path to your image here
-# #filename = 'd:/Data/yandex_z18_1-1.tif'  # huge TIFF file 1.4 GB
-# #filename = 'd:/Data/The_Garden_of_Earthly_Delights_by_Bosch_High_Resolution.jpg'
-# #filename = 'd:/Data/The_Garden_of_Earthly_Delights_by_Bosch_High_Resolution.tif'
-# #filename = 'd:/Data/heic1502a.tif'
-# #filename = 'd:/Data/land_shallow_topo_east.tif'
-# #filename = 'd:/Data/X1D5_B0002594.3FR'
-# app = MainWindow(tk.Tk(), path=filename)
-# app.mainloop()

@@ -1,9 +1,7 @@
 import math
 import tkinter as tk
 from abc import abstractmethod
-
 from PIL import Image
-
 from utils import TwoDPoint, Coordinates
 
 
@@ -34,7 +32,6 @@ class SelectionObject:
         """ Determine coords of a polygon defined by the start and
             end points one of the diagonals of a rectangular area.
         """
-        # print(start)
         if start is None:
             return (None, None, None, None)
 
@@ -46,8 +43,6 @@ class SelectionObject:
         min_h = box_img_int[1]
         max_w = box_img_int[2]
         max_h = box_img_int[3]
-        # print("min_h: " + str(min_h) + ", max_h: " + str(max_h))
-        # print("min_w: " + str(min_w) + ", max_w: " + str(max_w))
         s0 = clamp(start[0] + pan[0], min_w, max_w - 1)
         e0 = clamp(end[0] + pan[0], min_w, max_w - 1)
         s1 = clamp(start[1] + pan[1], min_h, max_h - 1)
@@ -66,7 +61,6 @@ class SelectionObject:
         self._hide()
         self.start = TwoDPoint(0, 0)
         self.end = TwoDPoint(self.img_width, self.img_height)
-        # self.draft = None #TODO override in shear
 
     def hide_module_rects(self):
         for mod in self.module_rects:
@@ -108,7 +102,7 @@ class SelectionObject:
         omin_x, omin_y, omax_x, omax_y = box_img_int
         up_coord = (*self._coord_mapping(imin_x, imin_y, box_img_int),
                     *self._coord_mapping(imax_x, imax_y, box_img_int))
-        print("COORD ---- " + str(up_coord))
+        # print("COORD ---- " + str(up_coord))
         self.coordinates = ((up_coord[0], up_coord[1]), (up_coord[2], up_coord[1]),
                             (up_coord[2], up_coord[3]), (up_coord[0], up_coord[3]))
 

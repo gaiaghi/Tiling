@@ -1,3 +1,5 @@
+# modified version of https://github.com/Suffoquer-fang/GraphCut/tree/main
+
 import numpy as np
 import networkx as nx
 from PIL import Image, ImageChops, ImageFilter
@@ -66,34 +68,26 @@ def show(a):
 
 
 def get_grad(im):
-    # im = im.convert('L')
     im = im.astype(float)
     grad_x = np.gradient(im, axis=0)
     grad_y = np.gradient(im, axis=1)
     grad_x = np.sum(grad_x ** 2, axis=2)
     grad_y = np.sum(grad_y ** 2, axis=2)
 
-    # grad_x = np.sqrt(grad_x)
-    # grad_y = np.sqrt(grad_y)
-
     return grad_x, grad_y
 
 
 def get_l2_energy_cost(s: Point, t: Point, im_src: np.ndarray, im_dst: np.ndarray, A_grad=None, B_grad=None,
                        use_grad=False) -> float:
-    # print(s.idx, t.idx)
     cost = np.square(im_src[s.idx] - im_dst[s.idx]).sum(-1) + np.square(im_src[t.idx] - im_dst[t.idx]).sum(-1)
 
     if use_grad:
-        # A_grad = get_grad(im_src)
-        # B_grad = get_grad(im_dst)
         cost = get_grad_cost(s.x, s.y, t.x, t.y, cost, A_grad, B_grad)
 
     return cost
 
 
 def get_l2_norm_cost(x_s, y_s, x_t, y_t, im_diff):
-    # M = 0
     return im_diff[x_s, y_s] + im_diff[x_t, y_t]
 
 
@@ -111,7 +105,6 @@ def get_grad_cost(x_s, y_s, x_t, y_t, M, A_grad, B_grad):
     grad_sum = grad_src[x_s, y_s] + grad_src[x_t, y_t] + grad_dst[x_s, y_s] + grad_dst[x_t, y_t]
 
     return M / (grad_sum + EPS)
-    # return M
 
 
 def get_bound_box(im_map) -> Region:
@@ -136,10 +129,9 @@ def build_graph(im_src, src_map, im_input, offset, seam_map: SeamMap, error_regi
     im_dst, dst_map = handle_input_offset(height, width, im_input, offset, error_region, region_size, i)
 
     overlap_map = src_map & dst_map
-    Image.fromarray(overlap_map).save(OUT_DIR_SUBPATCH+"_overlap_map_" + str(i) + ".png")
+    # Image.fromarray(overlap_map).save(OUT_DIR_SUBPATCH+"_overlap_map_" + str(i) + ".png")
 
     if (overlap_map == src_map).all() or (not overlap_map.any()):
-        print("Controllo su Overlap map")
         im_src[:, :] = im_dst[:, :]
         src_map |= dst_map
         return (None, im_dst, dst_map)
@@ -149,14 +141,10 @@ def build_graph(im_src, src_map, im_input, offset, seam_map: SeamMap, error_regi
     B_grad = get_grad(im_dst)
 
     overlap_region = get_bound_box(overlap_map)
-    Image.fromarray(im_dst[overlap_region.x1:overlap_region.x2, overlap_region.y1:overlap_region.y2, :].astype(np.uint8)).save(OUT_DIR_SUBPATCH+"TEST_01_dst" + str(i) + ".png")
-    Image.fromarray(im_src[overlap_region.x1:overlap_region.x2, overlap_region.y1:overlap_region.y2, :].astype(np.uint8)).save(OUT_DIR_SUBPATCH+"TEST_02_src" + str(i) + ".png")
+    # Image.fromarray(im_dst[overlap_region.x1:overlap_region.x2, overlap_region.y1:overlap_region.y2, :].astype(np.uint8)).save(OUT_DIR_SUBPATCH+"TEST_01_dst" + str(i) + ".png")
+    # Image.fromarray(im_src[overlap_region.x1:overlap_region.x2, overlap_region.y1:overlap_region.y2, :].astype(np.uint8)).save(OUT_DIR_SUBPATCH+"TEST_02_src" + str(i) + ".png")
 
     map_region = Region(0, 0, height, width)
-
-    #GG - questa variabile non viene usata
-    # im_diff = (im_src - im_dst) ** 2
-    # im_diff = np.sum(im_diff, axis=2)
 
     super_src = Point(-1, -1)
     super_dst = Point(height, width)
@@ -164,7 +152,6 @@ def build_graph(im_src, src_map, im_input, offset, seam_map: SeamMap, error_regi
     G = nx.Graph()
 
     for curr in overlap_region.points_iter():
-        # curr = Point(-1, -1)
         if not overlap_map[curr.idx]: continue
         left_nbr = curr.left_nbr()
         top_nbr = curr.top_nbr()
@@ -203,7 +190,6 @@ def build_graph(im_src, src_map, im_input, offset, seam_map: SeamMap, error_regi
                     G.add_edge(left_nbr.idx, seam_node.idx, weight=left_to_seam_cost)
                     G.add_edge(seam_node.idx, curr.idx, weight=seam_to_curr_cost)
 
-                    # pass
                 else:
                     energe_cost = get_l2_energy_cost(left_nbr, curr, im_src, im_dst, A_grad, B_grad, use_grad)
                     G.add_edge(left_nbr.idx, curr.idx, weight=energe_cost)
@@ -291,7 +277,7 @@ def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_re
                                        use_old_cut,
                                        use_grad)
 
-    Image.fromarray(im_dst.astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_im_dst_" + str(iter) + ".png")
+    # Image.fromarray(im_dst.astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_im_dst_" + str(iter) + ".png")
     print("-----finito costruzione grafo")
 
 
@@ -303,7 +289,7 @@ def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_re
         h, w = region_size[0], region_size[1]
 
     if G:
-        print("-----if G")
+        # print("-----if G")
         super_src = Point(-1, -1)
         super_dst = Point(height, width)
         if not (G.has_node(super_src.idx) and G.has_node(super_dst.idx)):
@@ -312,9 +298,6 @@ def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_re
 
         _, partion = nx.minimum_cut(G, super_src.idx, super_dst.idx, 'weight')
         print("-----finito mincut")
-        # flow = G.maxflow()
-        # partion = [set(), set()]
-        # gnx = G.get_nx_graph()
 
         img_left = np.ones(im_src.shape, dtype=np.uint8)
         left, right = partion
@@ -325,11 +308,11 @@ def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_re
                 img_left[rr] = (0, 1, 0)
         Image.fromarray((255 * img_left).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_left_right_" + str(iter) + ".png")
 
-    print("°°°°°°°°°°° offset ", off_x, off_y)
+    # print("°°°°°°°°°°° offset ", off_x, off_y)
     copy_region = Region(error_region.x1, error_region.y1, error_region.x2, error_region.y2)
     copy_region.clip(0, 0, height, width)
-    print("copy region: x1, x2 - y1, y2: (", copy_region.x1, ", ", copy_region.x2, ") - (", copy_region.y1, ", ",
-          copy_region.y2, ")")
+    # print("copy region: x1, x2 - y1, y2: (", copy_region.x1, ", ", copy_region.x2, ") - (", copy_region.y1, ", ",
+    #       copy_region.y2, ")")
 
     for curr in copy_region.points_iter():
         if not G or not G.has_node(curr.idx):
@@ -369,7 +352,6 @@ def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_re
     if blur:
         # traslo l'immagine di input dell'offset scelto così estraggo l'immagine patch direttamente con le sue coordinate
         tran_im_og = ImageChops.offset(Image.fromarray(im_input.astype(np.uint8)), off_y, off_x)
-        # tran_im_og.show()
         tran_im_og = np.array(tran_im_og, dtype=np.uint8)
         # scelto empiricamente
         blr_value = ((w+h)/2) / 100 + 0.5
@@ -378,8 +360,6 @@ def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_re
         blr_mask = mask.filter(ImageFilter.GaussianBlur(blr_value))
         img_prev = Image.fromarray(img_bg.astype(np.uint8))
         img_upd = Image.fromarray(tran_im_og.astype(np.uint8))
-        # blr_mask.show()
-        # Image.composite(img_upd.convert("RGBA"), img_prev.convert("RGBA"), blr_mask).show()
         im_src = np.array((Image.composite(img_upd.convert("RGBA"), img_prev.convert("RGBA"), blr_mask)).convert("RGB"))
         for i in range(len(maps)):
             map_img = Image.fromarray(maps[i].astype(np.uint8))
@@ -387,16 +367,7 @@ def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_re
             maps[i] = np.array((Image.composite(map_img.convert("RGBA"), map_prev.convert("RGBA"), blr_mask)).convert("RGB"))
         im_src[np.where(src_map == 0)] = 0
 
-    im3.save(OUT_DIR_SUBPATCH+"_updated_area_" + str(iter) + ".png")
-
-    # if im3.mode != 'RGBA':
-    #     im3 = im3.convert('RGBA')
-    # width, height = im3.size
-    # gradient = Image.new('L', (width, 1), color=0xFF)
-    # for x in range(width):
-    #     gradient.putpixel((x, 0), 255-x)
-    # alpha = gradient.resize(im3.size)
-
+    # im3.save(OUT_DIR_SUBPATCH+"_updated_area_" + str(iter) + ".png")
 
     return im_src
 
@@ -411,22 +382,22 @@ def handle_input_offset(height, width, im_input, offset, error_region: Region = 
     else:
         h, w = h_in, w_in
     off_x, off_y = offset
-    print("offset / region size in handle input offset ", off_x, off_y, " / ", region_size, " / ", h, w)
+    # print("offset / region size in handle input offset ", off_x, off_y, " / ", region_size, " / ", h, w)
 
     dst_map[error_region.x1:error_region.x2, error_region.y1:error_region.y2] = 1
     im_input_copy = np.copy(im_input)
     im_input_copy[error_region.x1 - off_x:error_region.x1 - off_x + h,
     error_region.y1 - off_y:error_region.y1 - off_y + w] = 0
-    Image.fromarray((im_input[error_region.x1 - off_x:error_region.x1 - off_x + h,
-                     error_region.y1 - off_y:error_region.y1 - off_y + w]).astype(np.uint8)).save(
-        OUT_DIR_SUBPATCH+"_TMP_IM_" + str(i) + ".png")
 
-    Image.fromarray((im_input_copy).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_COPY_IM_" + str(i) + ".png")
+    # Image.fromarray((im_input[error_region.x1 - off_x:error_region.x1 - off_x + h,
+    #                  error_region.y1 - off_y:error_region.y1 - off_y + w]).astype(np.uint8)).save(
+    #     OUT_DIR_SUBPATCH+"_TMP_IM_" + str(i) + ".png")
+    # Image.fromarray((im_input_copy).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_COPY_IM_" + str(i) + ".png")
 
     im_dst[error_region.x1:error_region.x2, error_region.y1:error_region.y2] = im_input[
                                                                                error_region.x1 - off_x:error_region.x1 - off_x + h,
                                                                                error_region.y1 - off_y:error_region.y1 - off_y + w]
-    Image.fromarray((im_dst).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_IM_DST_" + str(i) + ".png")
+    # Image.fromarray((im_dst).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_IM_DST_" + str(i) + ".png")
     return im_dst, dst_map
 
 
@@ -440,21 +411,10 @@ def get_offset_random(im_src, src_map, im_input):
     temp = np.where(src_map == 0)
     r, c = temp
 
-    off_x_max = h // 2
-    off_y_max = w // 2
+    # off_x_max = h // 2
+    # off_y_max = w // 2
     offset = [random.randint(r[0] - h, r[0] - 1), random.randint(c[0] - w, c[0] - 1)]
     return offset
-
-
-# def get_cost(im_src, im_dst, src_map, dst_map):
-#     overlap_map = src_map & dst_map
-#     if not overlap_map.any(): return INF
-#     im_diff = (im_src - im_dst) ** 2
-#     im_diff = np.sum(im_diff, axis=2)
-#     # im_diff = np.sqrt(im_diff)
-#     At = im_diff[overlap_map]
-#
-#     return np.mean(At)
 
 
 def get_conv(im_src, src_map, im_input):
@@ -516,13 +476,10 @@ def get_offset_entire_matching(im_src, src_map, im_input):
 
     for x in range(off_x_min, off_x_max):
         for y in range(off_y_min, off_y_max):
-            # print(x, y)
             im_dst, dst_map = handle_input_offset(height, width, im_input, (x, y))
-            # cost1 = get_cost(im_src, im_dst, src_map, dst_map)
             offset = (x, y)
             cost2 = get_cost_fft_based(conv_src, conv_dst, conv_cross, conv_overlap, offset, im_input)
 
-            # print(cost1, cost2)
             prob = np.exp(-cost2 / (k * sigma + EPS))
 
             off_x = x - off_x_min
@@ -533,7 +490,6 @@ def get_offset_entire_matching(im_src, src_map, im_input):
     prob_map /= np.sum(prob_map)
 
     idx = np.random.choice(idx_map, size=1, p=prob_map.reshape(-1))
-    # idx = np.argmax(prob_map.reshape(-1))
     off_x, off_y = np.unravel_index(idx, prob_map.shape)
     x, y = off_x + off_x_min, off_y + off_y_min
     return (int(x), int(y))
@@ -542,7 +498,6 @@ def get_offset_entire_matching(im_src, src_map, im_input):
 def get_error_cost(seam_map: SeamMap, error_region: Region):
     ret = 0
     for curr in error_region.points_iter():
-        # curr = Point(-1, -1)
         left_nbr = curr.left_nbr()
         top_nbr = curr.top_nbr()
         if seam_map.has_left[curr.idx] and error_region.contains(left_nbr.x, left_nbr.y): ret += seam_map.left_nbr_cost[
@@ -590,8 +545,6 @@ def get_error_region(src_map: np.ndarray, seam_map: SeamMap, region_size) -> Reg
         max_error = -1
         for x in range(temp.x + 1, height - rh):
             for y in range(temp.y + 1, width - rw):
-                # temp_error = get_error_cost(seam_map, Region(x, y, x + rh, y + rw))
-
                 temp_error = get_error_cost_fft_based(conv_left, conv_top, (x, y), region_size)
                 if temp_error > max_error:
                     max_error = temp_error
@@ -619,58 +572,45 @@ def get_offset_subpatch_matching(im_src, src_map, im_input, patch_region: Region
     im_src_subpatch = np.zeros(im_src.shape)
     dst_map = np.ones([h, w]).astype(bool)
 
-    # region_slice = error_region.slice()
-    #GG
-    # region_slice = (slice(error_region.x1, error_region.x1 + region_size[0]), slice(error_region.y1, error_region.y1 + region_size[1]))
-    #GG -> +20 serve è quello che funziona se si fa espansione con patch 60x60
-    # region_slice = (slice(error_region.x1, error_region.x1 + 15), slice(error_region.y1, error_region.y1 + 15))
-    # print("region slice ",region_slice)
     region_slice = (slice(patch_region.x1, patch_region.x2), slice(patch_region.y1, patch_region.y2))
-    # region_slice = (slice(max(0, error_region.x1-region_size[0]), error_region.x1 ), slice(max(0, error_region.y1-region_size[1]), error_region.y1 ))
     # estrazione della zone di errore dalla immagine attuale (output incompleto)
     im_src_subpatch = im_src[region_slice]
-    # print("subpatch shape ", im_src_subpatch[:, :, 0].shape)
 
     tmp_point = get_first_unconverd_pixel(im_src_subpatch[:, :, 0])
-    print("tmp point ", tmp_point.x, tmp_point.y)
+    # print("tmp point ", tmp_point.x, tmp_point.y)
     if tmp_point.y == 0 and tmp_point.x > 0:
         region_slice = (slice(patch_region.x1, patch_region.x1 + tmp_point.x), slice(patch_region.y1, patch_region.y2))
     else:
         region_slice = (slice(patch_region.x1, patch_region.x2), slice(patch_region.y1, patch_region.y1 + tmp_point.y))
-    print("-----region_slice aggiornata", region_slice)
+    # print("-----region_slice aggiornata", region_slice)
     im_src_subpatch = im_src[region_slice]
 
-    Image.fromarray(im_src_subpatch.astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_im_SRC_" + str(i) + ".png")
-
-    # print(im_src_subpatch)
+    # Image.fromarray(im_src_subpatch.astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_im_SRC_" + str(i) + ".png")
 
     conv_src, conv_dst, conv_cross, conv_overlap = get_conv(im_input, dst_map, im_src_subpatch)
-    Image.fromarray((conv_dst / conv_dst.max() * 255).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"conv_dst_" + str(i) + ".png")
-    Image.fromarray((conv_src / conv_src.max() * 255).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"conv_src_" + str(i) + ".png")
-    Image.fromarray((conv_cross / conv_cross.max() * 255).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"conv_cross_" + str(i) + ".png")
-    Image.fromarray((conv_overlap / conv_overlap.max() * 255).astype(np.uint8)).save(
-        OUT_DIR_SUBPATCH+"conv_overlap_" + str(i) + ".png")
+    # Image.fromarray((conv_dst / conv_dst.max() * 255).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"conv_dst_" + str(i) + ".png")
+    # Image.fromarray((conv_src / conv_src.max() * 255).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"conv_src_" + str(i) + ".png")
+    # Image.fromarray((conv_cross / conv_cross.max() * 255).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"conv_cross_" + str(i) + ".png")
+    # Image.fromarray((conv_overlap / conv_overlap.max() * 255).astype(np.uint8)).save(
+    #     OUT_DIR_SUBPATCH+"conv_overlap_" + str(i) + ".png")
 
-    #GG
     off_x_min = 0
     off_x_max = h - rh
     off_y_min = 0
     off_y_max = w - rw
     temp = np.where(src_map == 0)
-    r, c = temp
-    print("primo pixel vuoto ", r[0], c[0])
-    print("offset max ", off_x_max, off_y_max)
-    print("offset min ", off_x_min, off_y_min)
+    # r, c = temp
+    # print("primo pixel vuoto ", r[0], c[0])
+    # print("offset max ", off_x_max, off_y_max)
+    # print("offset min ", off_x_min, off_y_min)
     # per la scelta dell'offset
-    #GG
     sigma = np.var(im_src_subpatch)
-    print("sigma ", sigma)
-    # k = 0.01
+    # print("sigma ", sigma)
     k = 0.05
 
     prob_map = np.zeros([h, w])
     cost_map = np.zeros([off_x_max - off_x_min, off_y_max - off_y_min])
-    idx_map = list(range(0, (h) * (w)))
+    # idx_map = list(range(0, (h) * (w)))
 
     for x in range(off_x_min, off_x_max):
         for y in range(off_y_min, off_y_max):
@@ -688,21 +628,12 @@ def get_offset_subpatch_matching(im_src, src_map, im_input, patch_region: Region
     cost_map[max(0, patch_region.x1 - patch_size[0] // 2):patch_region.x2,
              max(0, patch_region.y1 - patch_size[1] // 2):patch_region.y2] = np.max(cost_map)
 
-    if i == 0:
-        np.savetxt(OUT_DIR_SUBPATCH+"cost2.csv", cost_map, delimiter=",")
-        np.savetxt(OUT_DIR_SUBPATCH+"prob.csv", prob_map, delimiter=",")
+    # if i == 0:
+    #     np.savetxt(OUT_DIR_SUBPATCH+"cost2.csv", cost_map, delimiter=",")
+    #     np.savetxt(OUT_DIR_SUBPATCH+"prob.csv", prob_map, delimiter=",")
 
-    print("sum prob ", np.sum(prob_map))
+    # print("sum prob ", np.sum(prob_map))
     prob_map /= np.sum(prob_map)
-
-    #GG tolto randomicità
-    # argmax = np.argmax(prob_map.reshape(-1))
-
-    # off_x, off_y = np.unravel_index(idx_map[argmax], prob_map.shape)
-    # questo era per estrarre i primi 5
-    # xs, ys = np.unravel_index(np.argsort(cost_map, axis=None), cost_map.shape)
-    # ii = list(zip(xs[:5], ys[:5]))
-    # off_x, off_y = random.choice(ii)
 
     #minimo assoluto (per stampa)
     off_x, off_y = np.unravel_index(cost_map.argmin(), cost_map.shape)
@@ -716,17 +647,11 @@ def get_offset_subpatch_matching(im_src, src_map, im_input, patch_region: Region
     mins_coord = list(zip(mins_x, mins_y))
     off_x, off_y = random.choice(mins_coord)
 
-    # perc = np.percentile(cost_map, 0.02)
-    # mins_x, mins_y = np.where(cost_map<perc)
-    # off_x, off_y = random.choice(list(zip(mins_x, mins_y)))
-
     print("cost value MIN ", (off_x, off_y), cost_map[off_x, off_y])
-    # print("percentile ", perc)
-    print("**altri minimi: ", len(list(zip(mins_x, mins_y))), list(zip(mins_x, mins_y)))
-    print("offset random ", off_x, off_y)
-    print("cost offset random ", cost_map[off_x, off_y])
+    # print("**altri minimi: ", len(list(zip(mins_x, mins_y))), list(zip(mins_x, mins_y)))
+    # print("offset random ", off_x, off_y)
+    # print("cost offset random ", cost_map[off_x, off_y])
 
     x, y = off_x + off_x_min, off_y + off_y_min
-
     true_x, true_y = patch_region.x1 - x, patch_region.y1 - y
     return (int(true_x), int(true_y))

@@ -1,7 +1,7 @@
 from settings import *
 import os
 import tkinter as tk
-from tkinter import filedialog, simpledialog
+from tkinter import filedialog
 from tkinter import messagebox
 from os import listdir
 from os.path import isfile, join
@@ -14,10 +14,10 @@ from Subpatch import Subpatch
 from utils import TwoDPoint
 
 
+# Dialog class: used to ask parameters from the user
 class Dialog(tk.Toplevel):
 
     def __init__(self, parent):
-
         tk.Toplevel.__init__(self, parent)
         self.transient(parent)
         self.title("Subpatch parameters")
@@ -74,24 +74,21 @@ class Dialog(tk.Toplevel):
         pass
 
 
+# Dialog class with two different input parameters
 class MultiDialog(Dialog):
 
     def __init__(self, parent):
-        self.cb = None
-        self.e1 = None
+        self.cb = None # boolean parameter: blur the edges of each patch in subpatch procedure
+        self.e1 = None # float parameter: patch fraction in subpatch procedure
         self.CheckVar = tk.IntVar(value=1)
         self.EntryVar = tk.StringVar(value="1")
         super().__init__(parent)
 
     def body(self, master):
         tk.Label(master, text="Patch fraction (patch size \nwith respect to error region)").grid(row=0, padx=10)
-        # tk.Label(master, text="Second:").grid(row=1, sticky=tk.W)
-
         self.e1 = tk.Entry(master, textvariable=self.EntryVar)
-        # self.e2 = tk.Entry(master)
         self.e1.grid(row=0, column=1, padx=10)
-        # self.e2.grid(row=1, column=1)
-        self.cb = tk.Checkbutton(master, text="Blur cut edges", variable=self.CheckVar)
+        self.cb = tk.Checkbutton(master, text="Seam blending", variable=self.CheckVar)
         self.cb.grid(row=1, columnspan=1, sticky=tk.W)
         return self.e1  # initial focus
 
@@ -109,8 +106,7 @@ class MultiDialog(Dialog):
             )
             return 0
 
-
-
+# main app
 class Application(tk.Frame):
     # Default selection object options.
     SELECT_OPTS = dict(dash=(2, 2), stipple='gray25', fill='white',
@@ -123,8 +119,8 @@ class Application(tk.Frame):
         self.selection_mode = tk.IntVar()
         self.selection_mode.set(1)
         self.selection_value = 1
-        self.imgpath = imgpath
-        self.coords = coords
+        self.imgpath = imgpath # path of the loaded image
+        self.coords = coords # coordinates of the selected area
         self.master.rowconfigure(0, weight=1)  # make the CanvasImage widget expandable
         self.master.columnconfigure(0, weight=1)
         self.canvas = CanvasImage(self.master, path=imgpath, coords=coords)  # create widget
@@ -168,7 +164,7 @@ class Application(tk.Frame):
         )
         menu_selection.add_cascade(menu=theme_menu, label="Selection mode")
         self.menubar.add_cascade(menu=menu_selection, label="Selection")
-
+        # shortcuts
         parent.bind_all("<Control-o>", self.load_image)
         parent.bind_all("<Control-O>", self.load_image)
         parent.bind_all("<Control-f>", self.load_folder)
@@ -188,67 +184,41 @@ class Application(tk.Frame):
 
         # pop-up menu creation
         self.popup_menu = tk.Menu(parent, tearoff=0)
-        # self.popup_menu.add_command(label="Crop selection", command=self.crop_selected)
         self.popup_menu.add_command(label="Save selection", command=self.save_selected)
-        # TODO cambia menù a pop up in una tendina del menù sopra
-        #  per il salvataggio del crop e per la ricarica dell'immagine iniziale (es: dopo tiling automatico)
-        # parent.bind("<Button-3>", self.do_popup)
 
-
+    # load single image
     def load_image(self, event=None):
         file_path = filedialog.askopenfilename(title="Open Image...",
                                                filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif *.bmp *.ico")])
         if file_path:
-            # self.percorso = file_path
             self.tiling = None
             self.imgpath = file_path
             self.canvas.destroy()
-            self.canvas = CanvasImage(self.master, path=file_path, selection_mode=self.selection_value)  # create widget
+            # create widget with updated image
+            self.canvas = CanvasImage(self.master, path=file_path, selection_mode=self.selection_value)
             self.canvas.grid(row=0, column=0)
-        # if file_path:
-        #     self.canvas.img = Image.open(file_path)
-        #     self.canvas.pht_img = ImageTk.PhotoImage(self.canvas.img)
-        #     self.canvas.orig = self.canvas.pht_img
-        #     # self.canvas.itemconfig(self.displayed_img, image=self.canvas.pht_img)
-        #     # self.canvas.config(height=self.canvas.pht_img.height(), width=self.canvas.pht_img.width())
-        #     self.canvas.canvas.itemconfig(self.canvas.displayed_img, image=self.canvas.pht_img)
-        #     self.canvas.canvas.config(height=self.canvas.pht_img.height(), width=self.canvas.pht_img.width())
-        #     self.canvas.selection_obj.height = self.canvas.pht_img.height()
-        #     self.canvas.selection_obj.width = self.canvas.pht_img.width()
-        #     self.canvas.selection_obj.clear()
         self.folder_maps = None
 
+    # load all material maps (located in a folder)
     def load_folder(self, event=None):
         """ Open single image to tile in a folder containing all texture maps.
         """
-        # try:
-        #     int("not_a_number")
-        # except ValueError as e:
-        #     print("str():", str(e))
-        #     print("repr():", repr(e))
-
         file_path = filedialog.askopenfilename(title="Open image map in folder...",
                                                filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif *.bmp *.ico")])
-        # if file_path:
         try:
             with open(file_path, "r") as _:
                 abs_file_path = os.path.abspath(file_path)
                 self.imgpath = abs_file_path
                 folder_path = os.path.dirname(abs_file_path)
-                # if os.path.isdir(folder_path):
-                #     folder_files = [join(folder_path, f) for f in listdir(folder_path) if isfile(join(folder_path, f))]
                 if os.path.isdir(folder_path):
                     folder_files = [join(folder_path, f) for f in listdir(folder_path) if isfile(join(folder_path, f))]
                     txtfile = [x for x in folder_files if x.endswith('.txt')]
                     self.weight_file = txtfile[0] if len(txtfile) >= 1 else None
-                    print("txt file ", self.weight_file)
+                    # print("txt file ", self.weight_file)
                     folder_files = [f for f in folder_files if
                                     (f.endswith((".jpg", ".png", ".bmp", ".ico", ".jpeg", ".gif")))]
                     self.folder_maps = folder_files
-                    print("folder files ", folder_files)
-                    # maps = [f for f in folder_files if not os.path.basename(file_path) in f]
-                    # print(maps)
-                    # self.percorso=file_path
+                    print("folder files: ", folder_files)
                 else:
                     print("Cannot open the provided directory.")
 
@@ -256,8 +226,6 @@ class Application(tk.Frame):
             self.canvas = CanvasImage(self.master, path=abs_file_path,
                                       selection_mode=self.selection_value)  # create widget
             self.canvas.grid(row=0, column=0)
-            # self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
-            #                      self.canvas.selection_obj.end, folder=folder_path, start_tiling=False)
         except FileNotFoundError:
             print("Error: The file ", file_path, " was not found.")
             content = IMGPATH
@@ -272,8 +240,6 @@ class Application(tk.Frame):
         self.update_canvas(path=self.imgpath)
 
     def start_subpatch(self, event=None):
-        # print("start, end ", self.canvas.selection_obj.start, self.canvas.selection_obj.end)
-        # print("canvas size ", self.canvas.imwidth, " ", self.canvas.imheight)
         dh = self.canvas.selection_obj.end.x - self.canvas.selection_obj.start.x
         dw = self.canvas.selection_obj.end.y - self.canvas.selection_obj.start.y
 
@@ -282,35 +248,23 @@ class Application(tk.Frame):
             tk.messagebox.showinfo("Subpatch edit", "Select a small area within the image to apply the edit.")
         # due controlli: l'area selezionata non può essere troppo vicina al bordo dell'immagine dx e top altrimenti non c'è abbastanza
         # area di confronto per la ricerca del patch.
-        #TODO si può rimuovere il controllo flippando tutto e prendendo quindi l'angolo opposto
+        # Si può rimuovere il controllo flippando tutto e prendendo quindi l'angolo opposto.
         elif self.canvas.selection_obj.start.x < dh / 5:
             tk.messagebox.showinfo("Subpatch edit", "The selected area is too close to the right border of the image.")
         elif self.canvas.selection_obj.start.y < dw / 5:
             tk.messagebox.showinfo("Subpatch edit", "The selected area is too close to the top border of the image.")
         else:
             d_inputs = MultiDialog(root)
-            # patch_fr = simpledialog.askfloat("Subpatch parameters",
-            #                                  "Patch fraction (patch size with respect to error region)", initialvalue=1)
             if d_inputs is not None:
                 patch_fr, blur_var = d_inputs.result
                 print("parch_fr, blur_var", patch_fr, blur_var)
                 img = self.imgpath
-                # print("PATCH FRACTION ", patch_fr)
                 subpatch = Subpatch(img, self.canvas.selection_obj.start, self.canvas.selection_obj.end,
-                                    maps_path=self.folder_maps, patch_fraction=(1 / patch_fr), blur=blur_var).subpatching()
-                # subpatch = Subpatch(img, (500,500), (600,600), patch_fraction=patch_fr).subpatching()
+                                    maps_path=self.folder_maps, patch_fraction=(1 / patch_fr),
+                                    blur=blur_var).subpatching()
                 self.update_canvas(img=subpatch)
-        #TODO finisci
 
     def start_tiling(self, event=None):
-        # if self.tiling is None:
-        #     self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
-        #                          self.canvas.selection_obj.end)
-        # else:
-        #     self.tiling.start_search()
-
-        # self.tiling = Tiling(self.master, self.canvas.canvas.img, self.canvas.selection_obj.start,
-        #                      self.canvas.selection_obj.end, maps=self.folder_maps)
         img_name = os.path.basename(self.imgpath)
         self.tiling = Tiling(self.canvas.canvas.img, self.canvas.selection_obj.start,
                              self.canvas.selection_obj.end, self.canvas.selection_obj,
@@ -325,16 +279,6 @@ class Application(tk.Frame):
             self.popup_menu.tk_popup(event.x_root, event.y_root)
         finally:
             self.popup_menu.grab_release()
-
-    # def crop_selected(self):
-    #     img = self.canvas.selection_obj.crop()
-    #     self.canvas.img = img
-    #     self.canvas.pht_img = ImageTk.PhotoImage(self.canvas.img)
-    #     self.canvas.canvas.itemconfig(self.canvas.displayed_img, image=self.canvas.pht_img)
-    #     self.canvas.canvas.config(height=self.canvas.pht_img.height(), width=self.canvas.pht_img.width())
-    #     self.canvas.selection_obj.height = self.canvas.pht_img.height()
-    #     self.canvas.selection_obj.width = self.canvas.pht_img.width()
-    #     self.canvas.selection_obj.clear()
 
     def save_selected(self):
         img = self.canvas.selection_obj.crop()
@@ -372,7 +316,6 @@ if __name__ == '__main__':
                         nargs='?', default=None, const=True, type=bool)
     parser.add_argument("-i", "--Image", help="Path to the image to open.", nargs='?',
                         default="img/damascato.jpg", const="img/img/damascato.jpg", type=str)
-    # parser.add_argument("-b", "--Batch", help="Batch mode.")
     # Read arguments from command line
     args = parser.parse_args()
 
@@ -380,7 +323,6 @@ if __name__ == '__main__':
     print("TSTAMP: ", TSTAMP)
     BATCH = args.Batch
     print("BATCH: ", BATCH)
-    # COORDS = tuple(int(num) for num in args.Coords.strip("()").split(','))
     COORDS = args.Coords
     print("COORDS: ", COORDS)
     IMGPATH = args.Image

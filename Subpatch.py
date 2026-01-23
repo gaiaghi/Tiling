@@ -32,12 +32,10 @@ class Subpatch:
         if self.maps_path is not None:
             for i in range(len(self.maps_path)):
                 self.maps.append(np.array(Image.open(self.maps_path[i])))
-            print("Lenght maps", len(self.maps))
-        # else:
-        #     self.maps.append(np.array(self.im))
+            # print("Lenght maps", len(self.maps))
 
         self.h, self.w, _ = self.im_input.shape
-        print("h,w ", self.h, self.w)
+        # print("h,w ", self.h, self.w)
 
         if not os.path.isdir(OUT_DIR_SUBPATCH):
             os.makedirs(OUT_DIR_SUBPATCH)
@@ -53,7 +51,6 @@ class Subpatch:
             self.height, self.width = self.h, self.w
             self.im_src = np.array(self.im, dtype=np.uint8)
             self.im_src[self.error_region.x1:self.error_region.x2, self.error_region.y1:self.error_region.y2, :] = 0
-            # Image.fromarray(self.im_src).show()
             self.src_map = np.ones([self.height, self.width]).astype(bool)
             self.src_map[self.error_region.x1:self.error_region.x2, self.error_region.y1:self.error_region.y2] = 0
 
@@ -73,15 +70,16 @@ class Subpatch:
                 patch_size = (
                     int((self.error_region.x2 - self.error_region.x1) / self.patch_fraction),
                     int((self.error_region.y2 - self.error_region.y1) / self.patch_fraction))
-                print("patch region size ", patch_size)
+                # print("patch region size ", patch_size)
 
             patch_region = get_error_region(self.src_map, self.seam_map, patch_size)
             print("PATCH region: x1, x2 - y1, y2: (", patch_region.x1, ", ", patch_region.x2, ") - (", patch_region.y1,
                   ", ", patch_region.y2, ")")
 
-            if self.place_method == 'random':
-                offset = get_offset_random(self.im_src, self.src_map, self.im_input)
-            elif self.place_method == 'entire':
+            # if self.place_method == 'random':
+            #     offset = get_offset_random(self.im_src, self.src_map, self.im_input)
+            if self.place_method == 'entire':
+                #TODO se ritenuto necessario è da integrare all'interfaccia grafica (per espansione/sintesi texture non tileable)
                 offset = get_offset_entire_matching(self.im_src, self.src_map, self.im_input)
             elif self.place_method == 'subpatch':
                 offset = get_offset_subpatch_matching(self.im_src, self.src_map, self.im_input, patch_region, patch_size, i)
@@ -91,25 +89,31 @@ class Subpatch:
                                         self.use_grad, self.blur)
 
             sp_im = Image.fromarray(self.im_src.astype(np.uint8))
-            sp_im.save(
-                '%s-%s-%d.png' % (OUT_DIR_SUBPATCH + os.path.basename(self.im_name).split('.')[0], self.place_method, i))
-            for mm in range(len(self.maps)):
-                sp_im = Image.fromarray(self.maps[mm].astype(np.uint8))
-                sp_im.save(
-                    '%s-%s-m%d.png' % (
-                    OUT_DIR_SUBPATCH + os.path.basename(self.maps_path[mm]).split('.')[0], self.place_method, i))
+            # sp_im.save(
+            #     '%s-%s-%d.png' % (OUT_DIR_SUBPATCH + os.path.basename(self.im_name).split('.')[0], self.place_method, i))
+            # for mm in range(len(self.maps)):
+            #     sp_im = Image.fromarray(self.maps[mm].astype(np.uint8))
+                # sp_im.save(
+                #     '%s-%s-m%d.png' % (
+                #     OUT_DIR_SUBPATCH + os.path.basename(self.maps_path[mm]).split('.')[0], self.place_method, i))
             i += 1
 
         end = time.time()
-        print("time: ", end - start)
+        print("computed in (s): ", end - start)
+        ts = time.strftime("%Y%m%d-%H%M%S")
+        sp_im.save(
+            '%s-%s-%s.png' % (OUT_DIR_SUBPATCH + os.path.basename(self.im_name).split('.')[0], self.place_method, ts))
+        for mm in range(len(self.maps)):
+            sp_im = Image.fromarray(self.maps[mm].astype(np.uint8))
+            sp_im.save(
+                '%s-%s-m%s.png' % (OUT_DIR_SUBPATCH +
+                                   os.path.basename(self.maps_path[mm]).split('.')[0], self.place_method, ts))
         return sp_im
 
 
 if __name__ == '__main__':
 
     im_name = 'data/asciugamano_edit.png'
-    # im_name = 'data/damascato_crop.jpg'
-    # error_regionIN = Region(18, 18, 80, 80) # damascato crop
     rstart = (250, 220)  # asciugamano edit
     rend = (330, 300)
     Subpatch(im_name, rstart, rend)

@@ -2,11 +2,10 @@ import itertools
 import tkinter as tk
 import numpy as np
 from PIL import Image
-
 from Selection import SelectionObject
 
 
-class RectangleObject(SelectionObject):  #TODO cambia nome (rectangle tipo)
+class RectangleObject(SelectionObject):
     """ Widget to display a rectangular area on given canvas defined by two points
         representing its diagonal.
     """
@@ -54,17 +53,15 @@ class RectangleObject(SelectionObject):  #TODO cambia nome (rectangle tipo)
         return output.reshape((w, h, 2))
 
     def get_mat(self, img, coord, deltax, deltay, mss=None):
-        # img = self.img.crop((coord[0].x, coord[0].y, coord[1].x, coord[1].y))
         cropped = np.array(img[coord[0].y: coord[2].y + 1, coord[0].x: coord[2].x + 1, :], dtype=np.uint32)
-        # mat = np.array(cropped.convert('RGBA'))
         if cropped.shape[-1] == 3:
             cropped = np.dstack((cropped, np.ones((cropped.shape[0], cropped.shape[1]))))
         return cropped
 
 
     def tile_image(self, tile: Image, coords=None, xrepeat=3, yrepeat=3):
-        og_w = tile.size[0]*xrepeat
-        og_h = tile.size[1]*yrepeat
+        # og_w = tile.size[0]*xrepeat
+        # og_h = tile.size[1]*yrepeat
         tile_w, tile_h = tile.size
 
         tiled = Image.new('RGBA', (xrepeat * tile_w, yrepeat * tile_h))
