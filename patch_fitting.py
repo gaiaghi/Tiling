@@ -129,7 +129,6 @@ def build_graph(im_src, src_map, im_input, offset, seam_map: SeamMap, error_regi
     im_dst, dst_map = handle_input_offset(height, width, im_input, offset, error_region, region_size, i)
 
     overlap_map = src_map & dst_map
-    # Image.fromarray(overlap_map).save(OUT_DIR_SUBPATCH+"_overlap_map_" + str(i) + ".png")
 
     if (overlap_map == src_map).all() or (not overlap_map.any()):
         im_src[:, :] = im_dst[:, :]
@@ -141,8 +140,6 @@ def build_graph(im_src, src_map, im_input, offset, seam_map: SeamMap, error_regi
     B_grad = get_grad(im_dst)
 
     overlap_region = get_bound_box(overlap_map)
-    # Image.fromarray(im_dst[overlap_region.x1:overlap_region.x2, overlap_region.y1:overlap_region.y2, :].astype(np.uint8)).save(OUT_DIR_SUBPATCH+"TEST_01_dst" + str(i) + ".png")
-    # Image.fromarray(im_src[overlap_region.x1:overlap_region.x2, overlap_region.y1:overlap_region.y2, :].astype(np.uint8)).save(OUT_DIR_SUBPATCH+"TEST_02_src" + str(i) + ".png")
 
     map_region = Region(0, 0, height, width)
 
@@ -276,8 +273,6 @@ def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_re
     (G, im_dst, dst_map) = build_graph(im_src, src_map, im_input, offset, seam_map, error_region, region_size, iter,
                                        use_old_cut,
                                        use_grad)
-
-    # Image.fromarray(im_dst.astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_im_dst_" + str(iter) + ".png")
     print("-----finito costruzione grafo")
 
 
@@ -306,7 +301,7 @@ def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_re
         for rr in right:
             if rr != (height, width):
                 img_left[rr] = (0, 1, 0)
-        Image.fromarray((255 * img_left).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_left_right_" + str(iter) + ".png")
+        # Image.fromarray((255 * img_left).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_min-cut_" + str(iter) + ".png")
 
     # print("°°°°°°°°°°° offset ", off_x, off_y)
     copy_region = Region(error_region.x1, error_region.y1, error_region.x2, error_region.y2)
@@ -367,8 +362,6 @@ def patch_fitting(im_src, src_map, im_input, offset, seam_map: SeamMap, error_re
             maps[i] = np.array((Image.composite(map_img.convert("RGBA"), map_prev.convert("RGBA"), blr_mask)).convert("RGB"))
         im_src[np.where(src_map == 0)] = 0
 
-    # im3.save(OUT_DIR_SUBPATCH+"_updated_area_" + str(iter) + ".png")
-
     return im_src
 
 
@@ -389,15 +382,9 @@ def handle_input_offset(height, width, im_input, offset, error_region: Region = 
     im_input_copy[error_region.x1 - off_x:error_region.x1 - off_x + h,
     error_region.y1 - off_y:error_region.y1 - off_y + w] = 0
 
-    # Image.fromarray((im_input[error_region.x1 - off_x:error_region.x1 - off_x + h,
-    #                  error_region.y1 - off_y:error_region.y1 - off_y + w]).astype(np.uint8)).save(
-    #     OUT_DIR_SUBPATCH+"_TMP_IM_" + str(i) + ".png")
-    # Image.fromarray((im_input_copy).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_COPY_IM_" + str(i) + ".png")
-
     im_dst[error_region.x1:error_region.x2, error_region.y1:error_region.y2] = im_input[
                                                                                error_region.x1 - off_x:error_region.x1 - off_x + h,
                                                                                error_region.y1 - off_y:error_region.y1 - off_y + w]
-    # Image.fromarray((im_dst).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_IM_DST_" + str(i) + ".png")
     return im_dst, dst_map
 
 
@@ -585,14 +572,7 @@ def get_offset_subpatch_matching(im_src, src_map, im_input, patch_region: Region
     # print("-----region_slice aggiornata", region_slice)
     im_src_subpatch = im_src[region_slice]
 
-    # Image.fromarray(im_src_subpatch.astype(np.uint8)).save(OUT_DIR_SUBPATCH+"_im_SRC_" + str(i) + ".png")
-
     conv_src, conv_dst, conv_cross, conv_overlap = get_conv(im_input, dst_map, im_src_subpatch)
-    # Image.fromarray((conv_dst / conv_dst.max() * 255).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"conv_dst_" + str(i) + ".png")
-    # Image.fromarray((conv_src / conv_src.max() * 255).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"conv_src_" + str(i) + ".png")
-    # Image.fromarray((conv_cross / conv_cross.max() * 255).astype(np.uint8)).save(OUT_DIR_SUBPATCH+"conv_cross_" + str(i) + ".png")
-    # Image.fromarray((conv_overlap / conv_overlap.max() * 255).astype(np.uint8)).save(
-    #     OUT_DIR_SUBPATCH+"conv_overlap_" + str(i) + ".png")
 
     off_x_min = 0
     off_x_max = h - rh
@@ -600,17 +580,12 @@ def get_offset_subpatch_matching(im_src, src_map, im_input, patch_region: Region
     off_y_max = w - rw
     temp = np.where(src_map == 0)
     # r, c = temp
-    # print("primo pixel vuoto ", r[0], c[0])
-    # print("offset max ", off_x_max, off_y_max)
-    # print("offset min ", off_x_min, off_y_min)
     # per la scelta dell'offset
     sigma = np.var(im_src_subpatch)
-    # print("sigma ", sigma)
     k = 0.05
 
     prob_map = np.zeros([h, w])
     cost_map = np.zeros([off_x_max - off_x_min, off_y_max - off_y_min])
-    # idx_map = list(range(0, (h) * (w)))
 
     for x in range(off_x_min, off_x_max):
         for y in range(off_y_min, off_y_max):
@@ -628,11 +603,6 @@ def get_offset_subpatch_matching(im_src, src_map, im_input, patch_region: Region
     cost_map[max(0, patch_region.x1 - patch_size[0] // 2):patch_region.x2,
              max(0, patch_region.y1 - patch_size[1] // 2):patch_region.y2] = np.max(cost_map)
 
-    # if i == 0:
-    #     np.savetxt(OUT_DIR_SUBPATCH+"cost2.csv", cost_map, delimiter=",")
-    #     np.savetxt(OUT_DIR_SUBPATCH+"prob.csv", prob_map, delimiter=",")
-
-    # print("sum prob ", np.sum(prob_map))
     prob_map /= np.sum(prob_map)
 
     #minimo assoluto (per stampa)
@@ -648,9 +618,6 @@ def get_offset_subpatch_matching(im_src, src_map, im_input, patch_region: Region
     off_x, off_y = random.choice(mins_coord)
 
     print("cost value MIN ", (off_x, off_y), cost_map[off_x, off_y])
-    # print("**altri minimi: ", len(list(zip(mins_x, mins_y))), list(zip(mins_x, mins_y)))
-    # print("offset random ", off_x, off_y)
-    # print("cost offset random ", cost_map[off_x, off_y])
 
     x, y = off_x + off_x_min, off_y + off_y_min
     true_x, true_y = patch_region.x1 - x, patch_region.y1 - y
